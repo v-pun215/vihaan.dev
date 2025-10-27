@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Frank+Ruhl+Libre:wght@300..900&family=Ubuntu+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+:root {
+  --heading-font: "Abril Fatface", serif;
+  --text-font: "Frank Ruhl Libre", sans-serif;
+  --mono-font: "Ubuntu Mono", serif;
+  --color-teal: #4FD1C5;
+  --color-text: rgba(255, 255, 255, 0.92);
+}
+
+body {
+  background-color:black;
+  margin:0;
+  padding:0;
+  color:white;
+}
+/* Nav */
+.top-bar {
+  background-color: black;
+  padding-top:10px;
+  font-family: var(--mono-font);
+  height:fit-content;
+  display:flex;
+  justify-content: center;
+  align-items: center;
+  padding-left:20px;
+  padding-right:20px;
+}
+.top-bar .links {
+  display:flex;
+  justify-content: space-between;
+  width:800px;
+  padding-top:5px;
+  padding-bottom:5px;
+  align-items: baseline;
+  border-bottom: 2px white solid;
+}
+.top-bar .links .name {
+  font-size:1.3rem;
+  color:white;
+  text-decoration: none;
+  font-weight:550;
+}
+.top-bar .links .right-links {
+  display:flex;
+  gap:20px;
+}
+.top-bar .links .right-links a {
+  color: var(--color-teal);
+  text-decoration: none;
+}
+.top-bar .links .right-links a:hover {
+  text-decoration: underline;
+}
+/* ---- */
+.content {
+  margin-top:1vh;
+  display:flex;
+  flex-direction: row;
+  justify-content: center;
+  width:1000px;
+}
+.brief-text {
+
+  text-align: left;
+  display:flex;
+  justify-content: center;
+  gap:20px;
+}
+.brief-text .text {
+  font-family: var(--text-font);
+  color: var(--color-text);
+  font-size:1.05rem;
+}
+.brief-text .text a {
+  color: var(--color-teal);
+}
+.brief-text .blog-overview {
+  padding:10px;
+  width:650px;
+}
+.brief-text .blog-overview h2 {
+  font-family: var(--heading-font);
+  font-weight: 100;
+  font-size:1.3rem;
+  padding:0;
+  margin:0;
+  margin-bottom:-10px;
+}
+
+.blogpost-short {
+  cursor:pointer;
+  background-color: red;
+  width:100%;
+}
+.blogpost-short .title {
+  
+}
