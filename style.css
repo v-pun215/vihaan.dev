@@ -1,21 +1,25 @@
-@import url('https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Frank+Ruhl+Libre:wght@300..900&family=Ubuntu+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css?family=Abril+Fatface|Frank+Ruhl+Libre|Ubuntu+Mono&display=swap');
+
 :root {
+  --background-color:black;
   --heading-font: "Abril Fatface", serif;
-  --text-font: "Frank Ruhl Libre", sans-serif;
+  --text-font: "Frank Ruhl Libre", serif;
   --mono-font: "Ubuntu Mono", serif;
   --color-teal: #4FD1C5;
   --color-text: rgba(255, 255, 255, 0.92);
+  --color-light-title:rgba(255, 255, 255, 0.64);
+  --color-gray-text: rgba(255, 255, 255, 0.24);
 }
 
 body {
-  background-color:black;
+  background-color:var(--background-color);
   margin:0;
   padding:0;
   color:white;
 }
 /* Nav */
 .top-bar {
-  background-color: black;
+  background-color: var(--background-color);
   padding-top:10px;
   font-family: var(--mono-font);
   height:fit-content;
@@ -47,13 +51,22 @@ body {
 .top-bar .links .right-links a {
   color: var(--color-teal);
   text-decoration: none;
+  font-weight: 100;
 }
 .top-bar .links .right-links a:hover {
   text-decoration: underline;
 }
 /* ---- */
+.banner {
+  margin-top: 20px;
+}
+.banner img {
+  max-width: 100%;
+  height:auto;
+}
+
 .content {
-  margin-top:1vh;
+  margin-top:10px;
   display:flex;
   flex-direction: row;
   justify-content: center;
@@ -69,7 +82,10 @@ body {
 .brief-text .text {
   font-family: var(--text-font);
   color: var(--color-text);
-  font-size:1.05rem;
+  font-size:1.125rem;
+  line-height: 1.5;
+  font-weight: 200;
+  opacity: 0.82;
 }
 .brief-text .text a {
   color: var(--color-teal);
@@ -89,9 +105,23 @@ body {
 
 .blogpost-short {
   cursor:pointer;
-  background-color: red;
   width:100%;
 }
+#loading-buffer {
+  font-family: var(--text-font);
+  color: var(--color-light-title);
+}
 .blogpost-short .title {
-  
+  color: var(--color-light-title);
+  font-family: var(--text-font);
+  font-size: 1.05rem;
+}
+.blogpost-short .title:hover {
+  text-decoration: underline;
+}
+.blogpost-short .metadata {
+  color: var(--color-gray-text);
+  font-family: var(--mono-font);
+  font-size: 0.95rem;
+  margin-top:-17px;
 }

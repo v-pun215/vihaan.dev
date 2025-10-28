@@ -1,5 +1,6 @@
 window.onload = function() {
     fixAge();
+    loadingBuffer();
 };
 
 
