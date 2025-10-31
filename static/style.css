@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css?family=Abril+Fatface|Frank+Ruhl+Libre|Ubuntu+Mono&display=swap');
 
 :root {
-  --background-color:black;
+  --background-color:#222831;
   --heading-font: "Abril Fatface", serif;
   --text-font: "Frank Ruhl Libre", serif;
   --mono-font: "Ubuntu Mono", serif;
@@ -9,13 +9,14 @@
   --color-text: rgba(255, 255, 255, 0.92);
   --color-light-title:rgba(255, 255, 255, 0.64);
   --color-gray-text: rgba(255, 255, 255, 0.24);
+  --nav-width:800px;
 }
 
 body {
   background-color:var(--background-color);
   margin:0;
   padding:0;
-  color:white;
+  color:var(--color-text);
 }
 /* Nav */
 .top-bar {
@@ -32,7 +33,7 @@ body {
 .top-bar .links {
   display:flex;
   justify-content: space-between;
-  width:800px;
+  width:var(--nav-width);
   padding-top:5px;
   padding-bottom:5px;
   align-items: baseline;
@@ -85,7 +86,6 @@ body {
   font-size:1.125rem;
   line-height: 1.5;
   font-weight: 200;
-  opacity: 0.82;
 }
 .brief-text .text a {
   color: var(--color-teal);
@@ -124,4 +124,29 @@ body {
   font-family: var(--mono-font);
   font-size: 0.95rem;
   margin-top:-17px;
+}
+
+/* BLOG */
+.blog-content {
+  width:var(--nav-width);
+  text-align: left;
+  margin-top: 20px;
+}
+.top-blog-header {
+  width:var(--nav-width);
+  text-align: left;
+}
+.top-blog-header h1 {
+  font-family: var(--heading-font);
+  font-size: 3.75rem;
+  font-weight: 400;
+  line-height: 1.3;
+  margin: 0;
+}
+.top-blog-header p {
+  font-family: var(--text-font);
+  font-size: 1.125rem;
+}
+.blog-list {
+  background: red;
 }

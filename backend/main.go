@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -68,7 +70,7 @@ func main() {
 	mux.HandleFunc("/api/blogposts/edit", editBlogHandler)     // POST
 	mux.HandleFunc("/api/blogposts/get", getBlogHandler)       // GET ?id=
 	mux.HandleFunc("/api/blogposts/search", searchBlogHandler) // GET ?q=
-
+	staticRoutes(mux, "../static")
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -99,6 +101,98 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("server shutdown error: %v", err)
 	}
+}
+
+func staticRoutes(mux *http.ServeMux, frontendDir string) {
+	if info, err := os.Stat(frontendDir); err != nil || !info.IsDir() {
+		log.Printf("staticRoutes: frontend directory not found: %s", frontendDir)
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "frontend not found", http.StatusInternalServerError)
+		})
+		return
+	}
+
+	fullPath := func(rel string) string {
+		return filepath.Join(frontendDir, filepath.FromSlash(rel))
+	}
+	serve404 := func(w http.ResponseWriter, r *http.Request) {
+		notFoundPath := fullPath("404.html")
+		if fi, err := os.Stat(notFoundPath); err == nil && !fi.IsDir() {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusNotFound)
+			http.ServeFile(w, r, notFoundPath)
+			return
+		}
+		http.Error(w, "404 page not found", http.StatusNotFound)
+	}
+	mux.HandleFunc("/projects", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		http.ServeFile(w, r, fullPath("projects.html"))
+	})
+	mux.HandleFunc("/pieces", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		http.ServeFile(w, r, fullPath("pieces.html"))
+	})
+	mux.HandleFunc("/blog", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		http.ServeFile(w, r, fullPath("blog.html"))
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Do not allow static handler to catch API routes
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			serve404(w, r)
+			return
+		}
+
+		if r.URL.Path == "/" {
+			http.ServeFile(w, r, fullPath("index.html"))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/") {
+			serve404(w, r)
+			return
+		}
+		rel := strings.TrimPrefix(r.URL.Path, "/")
+		if rel == "" {
+			serve404(w, r)
+			return
+		}
+		if strings.Contains(rel, "..") {
+			serve404(w, r)
+			return
+		}
+		firstSeg := rel
+		if idx := strings.Index(rel, "/"); idx != -1 {
+			firstSeg = rel[:idx]
+		}
+		if firstSeg == "js" || firstSeg == "img" {
+			serve404(w, r)
+			return
+		}
+		target := fullPath(rel)
+		absFrontend, _ := filepath.Abs(frontendDir)
+		absTarget, err := filepath.Abs(target)
+		if err != nil || !strings.HasPrefix(absTarget, absFrontend) {
+			serve404(w, r)
+			return
+		}
+		info, err := os.Stat(target)
+		if err != nil || info.IsDir() {
+			serve404(w, r)
+			return
+		}
+
+		http.ServeFile(w, r, target)
+	})
 }
 func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
