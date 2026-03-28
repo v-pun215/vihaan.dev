@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Admin | Vihaan Pundir</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+    <link rel="stylesheet" href="/admin/assets/admin.css">
+</head>
+<body>
+    <div id="login-view" class="auth-screen hidden">
+        <div class="auth-panel">
+            <div class="auth-badge">Internal CMS</div>
+            <h1>Admin</h1>
+            <p>Manage blog posts, projects, and pieces from one place.</p>
+
+            <form id="login-form" class="auth-form">
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+                <button type="submit">Enter Dashboard</button>
+            </form>
+
+            <p id="login-error" class="form-error hidden"></p>
+        </div>
+    </div>
+
+    <div id="app-view" class="admin-shell hidden">
+        <aside class="admin-sidebar">
+            <div class="admin-brand">
+                <p class="eyebrow">Vihaan Pundir</p>
+                <h1>Content Admin</h1>
+                <p class="sidebar-copy">A neat little control room for the site.</p>
+            </div>
+
+            <nav class="admin-nav" aria-label="Admin sections">
+                <button type="button" class="nav-link active" data-section="blogs">Blogs</button>
+                <button type="button" class="nav-link" data-section="projects">Projects</button>
+                <button type="button" class="nav-link" data-section="pieces">Pieces</button>
+            </nav>
+
+            <div class="sidebar-actions">
+                <button id="create-entry" type="button" class="primary-button">New Entry</button>
+                <button id="logout-button" type="button" class="ghost-button">Log Out</button>
+            </div>
+        </aside>
+
+        <main class="admin-main">
+            <header class="admin-topbar">
+                <div>
+                    <p id="section-kicker" class="eyebrow">Blogs</p>
+                    <h2 id="section-title">Manage Blogs</h2>
+                </div>
+
+                <div class="topbar-status">
+                    <span id="save-status" class="status-pill">Saved</span>
+                    <a id="public-link" class="ghost-link hidden" href="/" target="_blank" rel="noreferrer">Open Public Page</a>
+                </div>
+            </header>
+
+            <section class="admin-workspace">
+                <div class="list-panel">
+                    <div class="panel-header">
+                        <div>
+                            <p class="eyebrow">Collection</p>
+                            <h3 id="list-heading">All Blogs</h3>
+                        </div>
+                        <input id="list-search" type="search" placeholder="Search...">
+                    </div>
+
+                    <div id="entry-list" class="entry-list"></div>
+                    <p id="list-empty" class="panel-empty hidden">Nothing here yet.</p>
+                </div>
+
+                <div class="editor-panel">
+                    <div class="panel-header">
+                        <div>
+                            <p class="eyebrow">Editor</p>
+                            <h3 id="editor-heading">New Blog Post</h3>
+                        </div>
+                    </div>
+
+                    <div id="editor-root" class="editor-root"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+    <script src="/admin/assets/admin.js"></script>
+</body>
+</html>

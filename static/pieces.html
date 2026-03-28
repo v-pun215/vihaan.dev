@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Instrumental pieces, piano sketches, and recorded compositions by Vihaan Pundir.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="canonical" href="/pieces">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Pieces | Vihaan Pundir">
+    <meta property="og:description" content="Instrumental pieces, piano sketches, and recorded compositions by Vihaan Pundir.">
+    <meta property="og:url" content="/pieces">
+    <meta property="og:image" content="/img/banner.jpg">
+    <meta property="og:site_name" content="Vihaan Pundir">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Pieces | Vihaan Pundir">
+    <meta name="twitter:description" content="Instrumental pieces, piano sketches, and recorded compositions by Vihaan Pundir.">
+    <meta name="twitter:image" content="/img/banner.jpg">
+    <link rel="stylesheet" href="/style.css">
+    <title>Pieces | Vihaan Pundir</title>
+</head>
+<body class="pieces-page-body">
+    <div class="top-bar">
+        <div class="links">
+            <a class="name" href="/">Vihaan Pundir</a>
+            <div class="right-links">
+                <a href="/projects">Projects</a>
+                <a href="/pieces">Pieces</a>
+                <a href="/blog">Blog</a>
+            </div>
+        </div>
+    </div>
+
+    <main class="pieces-main">
+        <section id="pieces-app">
+            <div class="pieces-page">
+                <div class="pieces-hero">
+                    <div class="pieces-hero-copy">
+                        <h1>Pieces</h1>
+                        <p id="pieces-summary" class="pieces-summary">Loading the current collection...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pieces-shell-wrap">
+                <section class="pieces-shell" aria-live="polite">
+                    <div id="piece-stage" class="piece-stage piece-stage-loading">
+                        <div class="piece-stage-panel">
+                            <p class="piece-stage-label">Selected piece</p>
+                            <h2>Loading...</h2>
+                            <p class="piece-stage-description">Fetching pieces from the backend.</p>
+                            <div class="piece-stage-media">
+                                <div class="piece-media-placeholder">
+                                    <span>Preparing the listening room.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pieces-sidebar">
+                        <div class="pieces-hero-note">
+                            <span class="pieces-note-label">Archive</span>
+                            <strong id="pieces-count">0 works</strong>
+                            <p>Browse the published pieces below.</p>
+                        </div>
+
+                        <aside class="pieces-rail">
+                            <div class="pieces-rail-header">
+                                <p>Archive</p>
+                                <span>Choose a piece</span>
+                            </div>
+                            <div id="pieces-list" class="pieces-list">
+                                <p class="pieces-rail-empty">Loading pieces...</p>
+                            </div>
+                        </aside>
+                    </div>
+                </section>
+            </div>
+
+            <div class="pieces-page">
+                <noscript>
+                    <p class="pieces-noscript">Enable JavaScript to load the pieces archive and embedded playback.</p>
+                </noscript>
+            </div>
+        </section>
+    </main>
+
+    <script src="/js/pieces.js"></script>
+</body>
+</html>

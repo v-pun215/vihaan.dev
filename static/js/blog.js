@@ -1,35 +1,51 @@
 async function loadingBuffer() {
-    loading_span = document.getElementById("loading-buffer");
+    const loading_span = document.getElementById("loading-buffer");
+    if (!loading_span) return;
+
     try {
-        const response = await fetch('http://localhost:8080/api/blogposts');
+        const response = await fetch('/api/blogposts');
         if (!response.ok) throw Error('no api');
-        const list = await response.json().catch(() => [])
-        if (!Array.isArray(list) || list.length === 0 ) {
-            loading_span.innerHTML = "No blog posts found."
+        const payload = await response.json().catch(() => null);
+        const list = Array.isArray(payload) ? payload : [];
+
+        if (list.length === 0) {
+            loading_span.innerHTML = "No blog posts found.";
+            return;
         }
+
         for (const item of list) {
             renderPost(item);
         }
         loading_span.style.display = "none";
 
     } catch (error) {
-        alert(error);
-         const sample =[{"title":"Sample Blog Post","category":"education","date_published":"October 28 2025","last_updated":"October 28 2025"},{"title":"Using Markdown in Blog","category":"Development","date_published":"2025-10-28","last_updated":"2025-10-28"}];
-         for (const item of sample) {
-            renderPost(item);
-         }
-         loading_span.style.display = "none";
+        loading_span.innerHTML = "No blog posts found.";
     }
+}
+
+function escapeHTML(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
 }
 
 function renderPost(data) {
     const blogpost_div = document.getElementById("blogpost-div");
     if (!blogpost_div) return;
+    const slug = typeof data?.slug === "string" ? data.slug.trim() : "";
+    const href = slug ? `/blog/${encodeURIComponent(slug)}` : "/blog";
+    const metadata = [data?.category, data?.date_published]
+        .map((value) => typeof value === "string" ? value.trim() : "")
+        .filter(Boolean)
+        .join(", ");
     const post = `
-        <div class="blogpost-short">
-            <p class="title">${data.title}</p>
-            <p class="metadata">${data.category}, ${data.date_published}</p>
-        </div>
+        <a class="blogpost-short" href="${href}">
+            <p class="title">${escapeHTML(data?.title)}</p>
+            <p class="metadata">${escapeHTML(metadata)}</p>
+        </a>
     `;
     blogpost_div.insertAdjacentHTML('beforeend', post);
 }

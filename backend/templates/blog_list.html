@@ -1,0 +1,73 @@
+{{/* templates/blog_list.html */}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="description" content="{{ .PageDescription }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="canonical" href="{{ .CanonicalURL }}">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Blog | Vihaan Pundir">
+  <meta property="og:description" content="{{ .PageDescription }}">
+  <meta property="og:url" content="{{ .CanonicalURL }}">
+  <meta property="og:image" content="{{ .OGImageURL }}">
+  <meta property="og:site_name" content="Vihaan Pundir">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Blog | Vihaan Pundir">
+  <meta name="twitter:description" content="{{ .PageDescription }}">
+  <meta name="twitter:image" content="{{ .OGImageURL }}">
+  <link rel="stylesheet" href="/style.css">
+  <title>Blog | Vihaan Pundir</title>
+</head>
+<body>
+  <div class="top-bar">
+    <div class="links">
+      <a class="name" href="/">Vihaan Pundir</a>
+      <div class="right-links">
+        <a href="/projects">Projects</a>
+        <a href="/pieces">Pieces</a>
+        <a href="/blog">Blog</a>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <center>
+    <div class="blog-content">
+      <div class="top-blog-header">
+        <h1>Blog</h1>
+        <p>Writing about projects, code, and what I'm learning.</p>
+      </div>
+      <div class="blog-list">
+        {{ if .Posts }}
+          {{ range .Posts }}
+            <article class="blog-post">
+              <a class="blog-post-link" href="{{ .Link }}" aria-label="Read {{ .Title }}"></a>
+              {{ if .Thumbnail }}
+                <div class="blog-image">
+                        <!-- Ideal resolutions for 32:9 aspect ratio: 1280x360, 1920x540, 3840x1080, etc. -->
+                      <img style="width: 100%; aspect-ratio: 32 / 9; object-fit: cover;" src="{{ .Thumbnail }}" alt="{{ .Title }}" onerror="this.onerror=null;this.src='/img/post.avif';">
+                </div>
+              {{ end }}
+              <div class="blog-stuff">
+                <div class="blog-meta">
+                  <span class="blog-date">{{ .DatePublished }}</span> •
+                  <span class="blog-category">{{ .Category }}</span>
+                </div>
+                <h2 class="blog-title">{{ .Title }}</h2>
+                <p class="blog-description">{{ .Description }}</p>
+              </div>
+            </article>
+          {{ end }}
+        {{ else }}
+          <p>No blog posts found.</p>
+        {{ end }}
+      </div>
+    </div>
+    </center>
+  </main>
+
+  <script src="/js/script.js"></script>
+  <script src="/js/blog.js"></script>
+</body>
+</html>
