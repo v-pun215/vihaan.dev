@@ -14,6 +14,10 @@
   --color-muted:#c6c6c6;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   background-color:var(--background-color);
   margin:0;
@@ -679,6 +683,20 @@ body.pieces-page-body::before {
     grid-template-columns: 1fr;
     max-width: 700px;
     width: min(calc(100vw - 40px), 700px);
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1279px) {
+  .projects-grid {
+    width: calc(100vw - 40px);
+    margin-left: calc(20px - var(--page-start));
+  }
+}
+
+@media (min-width: 1280px) {
+  .projects-grid {
+    width: 1240px;
+    margin-left: -220px;
   }
 }
 
