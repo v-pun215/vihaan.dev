@@ -5,6 +5,7 @@ const piecesState = {
 
 const piecesDom = {
     app: document.getElementById("pieces-app"),
+    shellWrap: document.querySelector(".pieces-shell-wrap"),
     summary: document.getElementById("pieces-summary"),
     count: document.getElementById("pieces-count"),
     stage: document.getElementById("piece-stage"),
@@ -284,6 +285,9 @@ function readInitialIndex() {
 
 function renderEmptyState(message) {
     syncSummary();
+    if (piecesDom.shellWrap) {
+        piecesDom.shellWrap.style.display = "none";
+    }
     if (piecesDom.stage) {
         piecesDom.stage.className = "piece-stage piece-stage-empty";
         piecesDom.stage.innerHTML = `
