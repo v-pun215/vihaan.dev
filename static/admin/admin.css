@@ -264,6 +264,12 @@ select {
     background: var(--admin-accent-soft);
 }
 
+.status-pill.is-saving {
+    color: #9ce9ff;
+    border-color: rgba(156, 233, 255, 0.28);
+    background: rgba(156, 233, 255, 0.1);
+}
+
 .admin-workspace {
     display: grid;
     grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
@@ -298,20 +304,33 @@ select {
     max-width: 13rem;
 }
 
+.panel-note {
+    margin: 0;
+    padding: 0.95rem 1.3rem 0;
+    color: var(--admin-muted);
+    font-size: 0.86rem;
+    line-height: 1.65;
+}
+
 .entry-list {
     display: grid;
     gap: 0.7rem;
     padding: 1rem;
     max-height: calc(100vh - 15rem);
     overflow: auto;
+    align-content: start;
 }
 
 .entry-card {
+    display: block;
+    width: 100%;
     padding: 1rem;
     border-radius: 18px;
     border: 1px solid transparent;
     background: rgba(255, 255, 255, 0.025);
     cursor: pointer;
+    color: var(--admin-text);
+    text-align: left;
     transition: all 160ms ease;
 }
 
@@ -357,6 +376,75 @@ select {
     line-height: 1.6;
 }
 
+.entry-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2.6rem minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: stretch;
+}
+
+.entry-row .entry-card {
+    min-width: 0;
+}
+
+.entry-row.active .entry-card {
+    border-color: var(--admin-border-strong);
+    background: rgba(89, 231, 221, 0.08);
+}
+
+.entry-row.is-dragging {
+    opacity: 0.48;
+}
+
+.entry-row.drop-before::before,
+.entry-row.drop-after::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(89, 231, 221, 0.9), rgba(129, 255, 242, 0.95));
+    pointer-events: none;
+}
+
+.entry-row.drop-before::before {
+    top: -0.35rem;
+}
+
+.entry-row.drop-after::after {
+    bottom: -0.35rem;
+}
+
+.entry-drag-handle {
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    border: 1px dashed rgba(89, 231, 221, 0.14);
+    background: rgba(255, 255, 255, 0.02);
+    cursor: grab;
+    user-select: none;
+}
+
+.entry-row.is-dragging .entry-drag-handle,
+.entry-row:hover .entry-drag-handle {
+    border-color: rgba(89, 231, 221, 0.28);
+    background: rgba(89, 231, 221, 0.08);
+}
+
+.entry-drag-handle span {
+    display: block;
+    width: 0.85rem;
+    height: 0.2rem;
+    border-radius: 999px;
+    background: rgba(89, 231, 221, 0.72);
+}
+
+.entry-drag-handle span + span {
+    margin-top: 0.28rem;
+}
+
 .panel-empty {
     padding: 1rem 1.3rem 1.5rem;
     color: var(--admin-muted);
@@ -369,6 +457,36 @@ select {
 .editor-shell {
     display: grid;
     gap: 1.2rem;
+}
+
+.editor-shell-blog {
+    gap: 1rem;
+}
+
+.blog-editor-layout {
+    display: grid;
+    grid-template-columns: minmax(19rem, 23rem) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.blog-settings-panel,
+.blog-writing-panel {
+    min-width: 0;
+    border: 1px solid var(--admin-border);
+    border-radius: 22px;
+    background: rgba(12, 18, 25, 0.5);
+    overflow: hidden;
+}
+
+.blog-settings-panel {
+    position: sticky;
+    top: 1.3rem;
+}
+
+.form-grid.form-grid-blog {
+    grid-template-columns: 1fr;
+    padding: 1rem;
 }
 
 .form-grid {
@@ -398,8 +516,10 @@ select {
 
 .markdown-workbench {
     display: grid;
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    grid-template-columns: minmax(0, 1.28fr) minmax(20rem, 0.92fr);
     gap: 1rem;
+    min-height: 46rem;
+    padding: 0 1rem 1rem;
 }
 
 .markdown-pane,
@@ -409,8 +529,10 @@ select {
     border-radius: 20px;
     background: rgba(12, 18, 25, 0.58);
     overflow: hidden;
+    min-height: 100%;
 }
 
+.markdown-pane,
 .preview-pane {
     display: flex;
     flex-direction: column;
@@ -429,7 +551,30 @@ select {
     font-size: 0.95rem;
 }
 
+.writing-panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1rem 0.9rem;
+}
+
+.writing-panel-head h4 {
+    margin: 0.35rem 0 0;
+    font-size: 1rem;
+}
+
+.panel-copy {
+    max-width: 28ch;
+    margin: 0;
+    color: var(--admin-muted);
+    font-size: 0.88rem;
+    line-height: 1.65;
+}
+
 .preview-content {
+    flex: 1;
+    min-height: 0;
     padding: 1.25rem;
     overflow: auto;
     color: #dbe7f2;
@@ -514,6 +659,13 @@ select {
     padding: 0;
 }
 
+.EasyMDEContainer {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 100%;
+}
+
 .CodeMirror,
 .editor-toolbar,
 .editor-preview-side {
@@ -523,21 +675,77 @@ select {
 }
 
 .CodeMirror {
-    min-height: 30rem;
+    flex: 1;
+    min-height: 38rem;
+    padding-bottom: 0.75rem;
+}
+
+.CodeMirror-scroll {
+    min-height: 38rem;
+}
+
+.CodeMirror-lines {
+    padding: 1rem 0 2rem;
+}
+
+.CodeMirror-gutters {
+    background: transparent !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .CodeMirror-cursor {
     border-left-color: var(--admin-accent) !important;
 }
 
+.editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    padding: 0.85rem;
+    border-bottom: 1px solid var(--admin-border) !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.editor-toolbar::before,
+.editor-toolbar::after {
+    display: none;
+}
+
 .editor-toolbar button {
+    display: inline-grid;
+    place-items: center;
+    width: 2.35rem;
+    height: 2.35rem;
+    margin: 0 !important;
+    border: 1px solid transparent !important;
+    border-radius: 12px !important;
     color: var(--admin-muted) !important;
+    background: rgba(255, 255, 255, 0.02) !important;
 }
 
 .editor-toolbar button.active,
 .editor-toolbar button:hover {
-    background: rgba(255, 255, 255, 0.04) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
     border-color: var(--admin-border) !important;
+}
+
+.editor-toolbar button::before {
+    color: var(--admin-text);
+}
+
+.editor-toolbar i.separator {
+    margin: 0 0.2rem;
+    border-left-color: rgba(255, 255, 255, 0.08);
+}
+
+.editor-statusbar {
+    padding: 0.7rem 1rem 0.9rem;
+    border-top: 1px solid var(--admin-border);
+    color: var(--admin-muted);
+}
+
+.editor-statusbar span {
+    margin-right: 1rem;
 }
 
 .preview-loading {
@@ -558,6 +766,14 @@ select {
     .markdown-workbench {
         grid-template-columns: 1fr;
     }
+
+    .blog-editor-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .blog-settings-panel {
+        position: static;
+    }
 }
 
 @media (max-width: 760px) {
@@ -573,6 +789,10 @@ select {
     .admin-topbar {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .writing-panel-head {
+        flex-direction: column;
     }
 
     .panel-header input {

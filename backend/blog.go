@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -19,6 +20,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var (
@@ -30,6 +32,7 @@ var (
 const (
 	blogStatusDraft     = "draft"
 	blogStatusPublished = "published"
+	maxBlogSearchQuery  = 200
 )
 
 type viewPost struct {
@@ -77,7 +80,7 @@ func blogListHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	cur, err := blogCollection.Find(ctx, publishedBlogFilter())
+	cur, err := blogCollection.Find(ctx, publishedBlogFilter(), options.Find().SetSort(bson.D{{Key: "_id", Value: -1}}))
 	if err != nil {
 		http.Error(w, "failed to fetch posts", http.StatusInternalServerError)
 		log.Printf("blogListHandler: find error: %v", err)
@@ -194,16 +197,18 @@ func all_blogs_handler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cursor, err := blogCollection.Find(ctx, publishedBlogFilter())
+	cursor, err := blogCollection.Find(ctx, publishedBlogFilter(), options.Find().SetSort(bson.D{{Key: "_id", Value: -1}}))
 	if err != nil {
-		http.Error(w, "Error fetching blog posts: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("all_blogs_handler: find: %v", err)
+		http.Error(w, "failed to fetch blog posts", http.StatusInternalServerError)
 		return
 	}
 	defer cursor.Close(ctx)
 
 	var blogs []BlogPost
 	if err := cursor.All(ctx, &blogs); err != nil {
-		http.Error(w, "Error decoding blog posts: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("all_blogs_handler: decode: %v", err)
+		http.Error(w, "failed to decode blog posts", http.StatusInternalServerError)
 		return
 	}
 	if blogs == nil {
@@ -211,7 +216,8 @@ func all_blogs_handler(w http.ResponseWriter, r *http.Request) {
 	}
 	for i := range blogs {
 		if err := ensureBlogSlug(ctx, &blogs[i]); err != nil {
-			http.Error(w, "Error preparing blog posts: "+err.Error(), http.StatusInternalServerError)
+			log.Printf("all_blogs_handler: slug: %v", err)
+			http.Error(w, "failed to prepare blog posts", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -285,7 +291,7 @@ func postBlogHandler(w http.ResponseWriter, r *http.Request) {
 
 	var blog BlogPost
 	if err := json.NewDecoder(r.Body).Decode(&blog); err != nil {
-		http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -302,7 +308,8 @@ func postBlogHandler(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, errDuplicateSlug):
 			http.Error(w, "failed to insert blog post: slug already exists", http.StatusConflict)
 		default:
-			http.Error(w, "failed to insert blog post: "+err.Error(), http.StatusInternalServerError)
+			log.Printf("postBlogHandler: %v", err)
+			http.Error(w, "failed to insert blog post", http.StatusInternalServerError)
 		}
 		return
 	}
@@ -337,7 +344,8 @@ func deleteAllHandler(w http.ResponseWriter, r *http.Request) {
 
 	count, err := deleteAllBlogPosts(ctx)
 	if err != nil {
-		http.Error(w, "failed to delete blogposts: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("deleteAllHandler: %v", err)
+		http.Error(w, "failed to delete blog posts", http.StatusInternalServerError)
 		return
 	}
 
@@ -442,14 +450,16 @@ func editBlogHandler(w http.ResponseWriter, r *http.Request) {
 		if k == "id" {
 			continue
 		}
-		if allowed[k] {
-			if s, isStr := v.(string); isStr {
-				if s != "" {
-					updates[k] = s
-				}
-			} else {
-				updates[k] = v
-			}
+		if !allowed[k] {
+			continue
+		}
+		s, ok := v.(string)
+		if !ok {
+			http.Error(w, `{"error":"all updatable fields must be strings"}`, http.StatusBadRequest)
+			return
+		}
+		if s != "" {
+			updates[k] = s
 		}
 	}
 
@@ -469,11 +479,13 @@ func editBlogHandler(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, errInvalidStatus):
 			http.Error(w, `{"error":"invalid status"}`, http.StatusBadRequest)
 		default:
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+			log.Printf("editBlogHandler: %v", err)
+			http.Error(w, `{"error":"failed to update blog post"}`, http.StatusInternalServerError)
 		}
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(bson.M{
 		"modified_count": modified,
 	})
@@ -509,12 +521,14 @@ func getBlogHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, `{"error":"post not found"}`, http.StatusNotFound)
 			return
 		}
-		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+		log.Printf("getBlogHandler: %v", err)
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
 
 	if err := ensureBlogSlug(ctx, &blog); err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+		log.Printf("getBlogHandler ensure slug: %v", err)
+		http.Error(w, `{"error":"failed to load post"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -528,11 +542,16 @@ func searchBlogHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query().Get("q")
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	if q == "" {
 		http.Error(w, `{"error":"q query param required"}`, http.StatusBadRequest)
 		return
 	}
+	if len(q) > maxBlogSearchQuery {
+		http.Error(w, `{"error":"q is too long"}`, http.StatusBadRequest)
+		return
+	}
+	qSafe := regexp.QuoteMeta(q)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
@@ -542,30 +561,33 @@ func searchBlogHandler(w http.ResponseWriter, r *http.Request) {
 			publishedBlogFilter(),
 			{
 				"$or": []bson.M{
-					{"title": bson.M{"$regex": q, "$options": "i"}},
-					{"description": bson.M{"$regex": q, "$options": "i"}},
-					{"category": bson.M{"$regex": q, "$options": "i"}},
-					{"slug": bson.M{"$regex": q, "$options": "i"}},
+					{"title": bson.M{"$regex": qSafe, "$options": "i"}},
+					{"description": bson.M{"$regex": qSafe, "$options": "i"}},
+					{"category": bson.M{"$regex": qSafe, "$options": "i"}},
+					{"slug": bson.M{"$regex": qSafe, "$options": "i"}},
 				},
 			},
 		},
 	}
 
-	cursor, err := blogCollection.Find(ctx, filter)
+	cursor, err := blogCollection.Find(ctx, filter, options.Find().SetSort(bson.D{{Key: "_id", Value: -1}}))
 	if err != nil {
-		http.Error(w, `{"error":"search failed: `+err.Error()+`"}`, http.StatusInternalServerError)
+		log.Printf("searchBlogHandler: find: %v", err)
+		http.Error(w, `{"error":"search failed"}`, http.StatusInternalServerError)
 		return
 	}
 	defer cursor.Close(ctx)
 
 	var results []BlogPost
 	if err := cursor.All(ctx, &results); err != nil {
-		http.Error(w, `{"error":"decode failed: `+err.Error()+`"}`, http.StatusInternalServerError)
+		log.Printf("searchBlogHandler: decode: %v", err)
+		http.Error(w, `{"error":"search failed"}`, http.StatusInternalServerError)
 		return
 	}
 	for i := range results {
 		if err := ensureBlogSlug(ctx, &results[i]); err != nil {
-			http.Error(w, `{"error":"slug preparation failed: `+err.Error()+`"}`, http.StatusInternalServerError)
+			log.Printf("searchBlogHandler: slug: %v", err)
+			http.Error(w, `{"error":"search failed"}`, http.StatusInternalServerError)
 			return
 		}
 	}

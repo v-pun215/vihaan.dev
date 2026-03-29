@@ -35,6 +35,11 @@ func ConnectDB(ctx context.Context, uri string, dbName string) error {
 	projectCollection = db.Collection("projects")
 	pieceCollection = db.Collection("pieces")
 	blogCollection = db.Collection("blogposts")
+	if _, err := projectCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{{Key: "display_order", Value: 1}},
+	}); err != nil {
+		return fmt.Errorf("failed to create project display order index: %w", err)
+	}
 	if _, err := blogCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys: bson.D{{Key: "slug", Value: 1}},
 	}); err != nil {

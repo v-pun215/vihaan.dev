@@ -10,6 +10,9 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type sitemapPage struct {
@@ -41,7 +44,14 @@ func robotsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	_, _ = w.Write([]byte("User-agent: *\nAllow: /\n\nSitemap: " + absoluteURL(r, "/sitemap.xml") + "\n"))
+	body := "User-agent: *\nAllow: /\n" +
+		"Disallow: /admin\n" +
+		"Disallow: /admin/\n" +
+		"Disallow: /api/admin\n" +
+		"Disallow: /api/admin/\n" +
+		"\n" +
+		"Sitemap: " + absoluteURL(r, "/sitemap.xml") + "\n"
+	_, _ = w.Write([]byte(body))
 }
 
 func sitemapHandler(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +68,7 @@ func sitemapHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	cur, err := blogCollection.Find(ctx, publishedBlogFilter())
+	cur, err := blogCollection.Find(ctx, publishedBlogFilter(), options.Find().SetSort(bson.D{{Key: "_id", Value: -1}}))
 	if err != nil {
 		http.Error(w, "failed to build sitemap", http.StatusInternalServerError)
 		log.Printf("sitemapHandler: find error: %v", err)

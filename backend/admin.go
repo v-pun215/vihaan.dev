@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -34,6 +35,11 @@ func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
 
 func writeAdminAPIError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+func writeAdminInternalError(w http.ResponseWriter, err error) {
+	log.Printf("admin api: %v", err)
+	writeAdminAPIError(w, http.StatusInternalServerError, "internal server error")
 }
 
 func adminPassword() (string, error) {
@@ -154,7 +160,8 @@ func requireAdminPage(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ok, err := validateAdminSession(r)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("admin session: %v", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		if !ok {
@@ -169,7 +176,7 @@ func requireAdminAPI(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ok, err := validateAdminSession(r)
 		if err != nil {
-			writeAdminAPIError(w, http.StatusInternalServerError, err.Error())
+			writeAdminInternalError(w, err)
 			return
 		}
 		if !ok {
@@ -202,9 +209,15 @@ func adminDashboardPageHandler(adminDir string) http.HandlerFunc {
 }
 
 func adminLoginHandler(w http.ResponseWriter, r *http.Request) {
+	ip := clientIP(r)
+	if loginLimiter.isBlocked(ip) {
+		writeAdminAPIError(w, http.StatusTooManyRequests, "too many failed login attempts; try again later")
+		return
+	}
+
 	password, err := adminPassword()
 	if err != nil {
-		writeAdminAPIError(w, http.StatusInternalServerError, err.Error())
+		writeAdminInternalError(w, err)
 		return
 	}
 
@@ -217,12 +230,15 @@ func adminLoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if subtle.ConstantTimeCompare([]byte(payload.Password), []byte(password)) != 1 {
+		loginLimiter.recordFailure(ip)
 		writeAdminAPIError(w, http.StatusUnauthorized, "invalid password")
 		return
 	}
 
+	loginLimiter.clear(ip)
+
 	if err := setAdminSessionCookie(w, r); err != nil {
-		writeAdminAPIError(w, http.StatusInternalServerError, err.Error())
+		writeAdminInternalError(w, err)
 		return
 	}
 
@@ -317,7 +333,7 @@ func adminCreateBlogHandler(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, errDuplicateSlug):
 			writeAdminAPIError(w, http.StatusConflict, err.Error())
 		default:
-			writeAdminAPIError(w, http.StatusInternalServerError, err.Error())
+			writeAdminInternalError(w, err)
 		}
 		return
 	}
@@ -342,7 +358,7 @@ func adminGetBlogHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := ensureBlogSlug(ctx, &blog); err != nil {
-		writeAdminAPIError(w, http.StatusInternalServerError, err.Error())
+		writeAdminInternalError(w, err)
 		return
 	}
 	blog = normalizeAdminBlog(blog)
@@ -379,7 +395,7 @@ func adminUpdateBlogHandler(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, errInvalidStatus):
 			writeAdminAPIError(w, http.StatusBadRequest, err.Error())
 		default:
-			writeAdminAPIError(w, http.StatusBadRequest, err.Error())
+			writeAdminInternalError(w, err)
 		}
 		return
 	}
@@ -404,22 +420,7 @@ func adminDeleteBlogHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func listAdminProjects(ctx context.Context) ([]Project, error) {
-	cur, err := projectCollection.Find(ctx, bson.M{}, options.Find().SetSort(bson.D{{Key: "_id", Value: -1}}))
-	if err != nil {
-		return nil, err
-	}
-	defer cur.Close(ctx)
-
-	var raw []bson.M
-	if err := cur.All(ctx, &raw); err != nil {
-		return nil, err
-	}
-
-	projects := make([]Project, 0, len(raw))
-	for _, doc := range raw {
-		projects = append(projects, projectFromDocument(doc))
-	}
-	return projects, nil
+	return findAllProjects(ctx)
 }
 
 func adminListProjectsHandler(w http.ResponseWriter, r *http.Request) {
@@ -447,6 +448,11 @@ func adminCreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+	project.DisplayOrder, err = nextProjectDisplayOrder(ctx)
+	if err != nil {
+		writeAdminAPIError(w, http.StatusInternalServerError, "failed to prepare project order")
+		return
+	}
 	inserted, err := projectCollection.InsertOne(ctx, project)
 	if err != nil {
 		writeAdminAPIError(w, http.StatusInternalServerError, "failed to create project")
@@ -459,6 +465,35 @@ func adminCreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]interface{}{
 		"inserted_id": inserted.InsertedID,
 		"project":     project,
+	})
+}
+
+func adminReorderProjectsHandler(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeAdminAPIError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	if err := reorderProjects(ctx, payload.IDs); err != nil {
+		writeAdminAPIError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	projects, err := listAdminProjects(ctx)
+	if err != nil {
+		writeAdminAPIError(w, http.StatusInternalServerError, "failed to fetch reordered projects")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"ok":       true,
+		"projects": projects,
 	})
 }
 

@@ -16,15 +16,16 @@ import (
 )
 
 type Project struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Title       string             `bson:"title,omitempty" json:"title,omitempty"`
-	Thumbnail   string             `bson:"thumbnail,omitempty" json:"thumbnail,omitempty"`
-	DateStart   string             `bson:"date_start,omitempty" json:"date_start,omitempty"`
-	DateEnd     string             `bson:"date_end,omitempty" json:"date_end,omitempty"`
-	Tags        []string           `bson:"tags,omitempty" json:"tags,omitempty"`
-	Description string             `bson:"description,omitempty" json:"description,omitempty"`
-	GithubLink  string             `bson:"github_link,omitempty" json:"github_link,omitempty"`
-	WebsiteLink string             `bson:"website_link,omitempty" json:"website_link,omitempty"`
+	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	DisplayOrder int                `bson:"display_order,omitempty" json:"display_order,omitempty"`
+	Title        string             `bson:"title,omitempty" json:"title,omitempty"`
+	Thumbnail    string             `bson:"thumbnail,omitempty" json:"thumbnail,omitempty"`
+	DateStart    string             `bson:"date_start,omitempty" json:"date_start,omitempty"`
+	DateEnd      string             `bson:"date_end,omitempty" json:"date_end,omitempty"`
+	Tags         []string           `bson:"tags,omitempty" json:"tags,omitempty"`
+	Description  string             `bson:"description,omitempty" json:"description,omitempty"`
+	GithubLink   string             `bson:"github_link,omitempty" json:"github_link,omitempty"`
+	WebsiteLink  string             `bson:"website_link,omitempty" json:"website_link,omitempty"`
 }
 
 type Piece struct {
@@ -89,6 +90,7 @@ func main() {
 	mux.Handle("DELETE /api/admin/blogs/{id}", requireAdminAPI(http.HandlerFunc(adminDeleteBlogHandler)))
 	mux.Handle("GET /api/admin/projects", requireAdminAPI(http.HandlerFunc(adminListProjectsHandler)))
 	mux.Handle("POST /api/admin/projects", requireAdminAPI(http.HandlerFunc(adminCreateProjectHandler)))
+	mux.Handle("POST /api/admin/projects/reorder", requireAdminAPI(http.HandlerFunc(adminReorderProjectsHandler)))
 	mux.Handle("GET /api/admin/projects/{id}", requireAdminAPI(http.HandlerFunc(adminGetProjectHandler)))
 	mux.Handle("PUT /api/admin/projects/{id}", requireAdminAPI(http.HandlerFunc(adminUpdateProjectHandler)))
 	mux.Handle("DELETE /api/admin/projects/{id}", requireAdminAPI(http.HandlerFunc(adminDeleteProjectHandler)))
@@ -122,8 +124,12 @@ func main() {
 	addr := ":" + port
 
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: enableCORS(mux),
+		Addr:              addr,
+		Handler:           securityHeaders(noindexAdminRoutes(enableCORS(mux))),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// graceful shutdown handling
@@ -274,28 +280,5 @@ func staticRoutes(mux *http.ServeMux, frontendDir string) {
 
 		// Serve the static file
 		http.ServeFile(w, r, target)
-	})
-}
-
-func enableCORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-		if origin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Vary", "Origin")
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-		} else {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-		}
-
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
 	})
 }

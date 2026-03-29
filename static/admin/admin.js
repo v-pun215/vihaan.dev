@@ -11,6 +11,9 @@ const state = {
     slugTouched: false,
     previewRequestId: 0,
     previewTimer: null,
+    statusOverride: "",
+    draggedEntryId: null,
+    reorderInFlight: false,
 };
 
 const dom = {
@@ -28,6 +31,7 @@ const dom = {
     sectionTitle: document.getElementById("section-title"),
     listHeading: document.getElementById("list-heading"),
     listSearch: document.getElementById("list-search"),
+    listNote: document.getElementById("list-note"),
     entryList: document.getElementById("entry-list"),
     listEmpty: document.getElementById("list-empty"),
     editorHeading: document.getElementById("editor-heading"),
@@ -66,6 +70,7 @@ function bindGlobalEvents() {
     dom.createEntryButton.addEventListener("click", () => startNewEntry());
     dom.listSearch.addEventListener("input", () => {
         state.listQuery = dom.listSearch.value.trim().toLowerCase();
+        updateListNote();
         renderList();
     });
 
@@ -155,6 +160,9 @@ async function setSection(sectionName) {
     state.tags = [];
     state.listQuery = "";
     state.slugTouched = false;
+    state.draggedEntryId = null;
+    state.reorderInFlight = false;
+    state.statusOverride = "";
     dom.listSearch.value = "";
     updateSectionChrome();
     await loadCurrentSection();
@@ -170,8 +178,22 @@ function updateSectionChrome() {
     dom.listHeading.textContent = `All ${meta.label}`;
     dom.editorHeading.textContent = meta.newLabel;
     dom.createEntryButton.textContent = meta.newLabel;
+    updateListNote();
     setDirty(false);
     updatePublicLink(null);
+}
+
+function updateListNote() {
+    if (state.section !== "projects") {
+        dom.listNote.textContent = "";
+        dom.listNote.classList.add("hidden");
+        return;
+    }
+
+    dom.listNote.textContent = state.listQuery
+        ? "Search is active. Clear it to drag projects into the exact order shown on the public projects page."
+        : "Drag projects here to control the order shown on the public projects page.";
+    dom.listNote.classList.remove("hidden");
 }
 
 async function loadCurrentSection(preferSelectionId) {
@@ -243,23 +265,168 @@ function renderList() {
     dom.listEmpty.classList.add("hidden");
 
     items.forEach((item) => {
-        const card = document.createElement("button");
-        card.type = "button";
-        card.className = "entry-card";
-        card.classList.toggle("active", getItemId(item) === state.selectedId);
-        card.innerHTML = renderListCard(item);
-        card.addEventListener("click", async () => {
-            const id = getItemId(item);
-            if (id === state.selectedId) {
-                return;
-            }
-            if (!confirmDiscardIfNeeded()) {
-                return;
-            }
-            await selectEntry(id);
-        });
+        const card = createEntryCard(item);
+        if (canReorderProjects()) {
+            dom.entryList.appendChild(createProjectReorderRow(item, card));
+            return;
+        }
         dom.entryList.appendChild(card);
     });
+}
+
+function createEntryCard(item) {
+    const card = document.createElement("button");
+    const id = getItemId(item);
+    card.type = "button";
+    card.className = "entry-card";
+    card.classList.toggle("active", id === state.selectedId);
+    card.innerHTML = renderListCard(item);
+    card.addEventListener("click", async () => {
+        if (id === state.selectedId) {
+            return;
+        }
+        if (!confirmDiscardIfNeeded()) {
+            return;
+        }
+        await selectEntry(id);
+    });
+    return card;
+}
+
+function createProjectReorderRow(item, card) {
+    const id = getItemId(item);
+    const row = document.createElement("div");
+    row.className = "entry-row entry-row-draggable";
+    row.dataset.id = id;
+    row.draggable = !state.reorderInFlight;
+    row.classList.toggle("active", id === state.selectedId);
+    row.innerHTML = `
+        <div class="entry-drag-handle" aria-hidden="true">
+            <span></span>
+            <span></span>
+        </div>
+    `;
+    row.appendChild(card);
+    bindProjectRowDragEvents(row, id);
+    return row;
+}
+
+function canReorderProjects() {
+    return state.section === "projects" && !state.listQuery;
+}
+
+function bindProjectRowDragEvents(row, id) {
+    row.addEventListener("dragstart", (event) => {
+        if (state.reorderInFlight) {
+            event.preventDefault();
+            return;
+        }
+        state.draggedEntryId = id;
+        row.classList.add("is-dragging");
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", id);
+        }
+    });
+
+    row.addEventListener("dragover", (event) => {
+        if (!state.draggedEntryId || state.draggedEntryId === id) {
+            return;
+        }
+        event.preventDefault();
+        const insertAfter = pointerIsPastRowMidpoint(event, row);
+        row.classList.toggle("drop-before", !insertAfter);
+        row.classList.toggle("drop-after", insertAfter);
+    });
+
+    row.addEventListener("dragleave", (event) => {
+        if (event.relatedTarget instanceof Node && row.contains(event.relatedTarget)) {
+            return;
+        }
+        clearProjectDropState(row);
+    });
+
+    row.addEventListener("drop", async (event) => {
+        event.preventDefault();
+        const draggedId = state.draggedEntryId || event.dataTransfer?.getData("text/plain");
+        const insertAfter = pointerIsPastRowMidpoint(event, row);
+        clearProjectDropState(row);
+        if (!draggedId || draggedId === id) {
+            return;
+        }
+        await moveProjectEntry(draggedId, id, insertAfter);
+    });
+
+    row.addEventListener("dragend", () => {
+        state.draggedEntryId = null;
+        clearProjectDragState();
+    });
+}
+
+function pointerIsPastRowMidpoint(event, row) {
+    const rect = row.getBoundingClientRect();
+    return event.clientY > rect.top + rect.height / 2;
+}
+
+function clearProjectDropState(row) {
+    row.classList.remove("drop-before", "drop-after");
+}
+
+function clearProjectDragState() {
+    dom.entryList.querySelectorAll(".entry-row").forEach((row) => {
+        row.classList.remove("is-dragging", "drop-before", "drop-after");
+    });
+}
+
+async function moveProjectEntry(sourceId, targetId, insertAfter) {
+    if (state.reorderInFlight) {
+        return;
+    }
+
+    const previousItems = [...state.items];
+    const sourceIndex = previousItems.findIndex((item) => getItemId(item) === sourceId);
+    const targetIndex = previousItems.findIndex((item) => getItemId(item) === targetId);
+    if (sourceIndex === -1 || targetIndex === -1) {
+        return;
+    }
+
+    const reorderedItems = [...previousItems];
+    const [movedItem] = reorderedItems.splice(sourceIndex, 1);
+    let insertIndex = reorderedItems.findIndex((item) => getItemId(item) === targetId);
+    if (insertIndex === -1) {
+        return;
+    }
+    if (insertAfter) {
+        insertIndex += 1;
+    }
+    reorderedItems.splice(insertIndex, 0, movedItem);
+
+    const nextIds = reorderedItems.map((item) => getItemId(item));
+    const previousIds = previousItems.map((item) => getItemId(item));
+    if (nextIds.join("|") === previousIds.join("|")) {
+        return;
+    }
+
+    state.items = reorderedItems;
+    state.reorderInFlight = true;
+    setStatusOverride("Saving order...");
+    renderList();
+
+    try {
+        const response = await fetchJSON("/api/admin/projects/reorder", {
+            method: "POST",
+            body: JSON.stringify({ ids: nextIds }),
+        });
+        state.items = Array.isArray(response?.projects) ? response.projects : reorderedItems;
+    } catch (error) {
+        state.items = previousItems;
+        window.alert(error.message || "Failed to reorder projects.");
+    } finally {
+        state.reorderInFlight = false;
+        state.draggedEntryId = null;
+        setStatusOverride("");
+        renderList();
+    }
 }
 
 function renderListCard(item) {
@@ -357,61 +524,83 @@ function renderEditor(item) {
 function renderBlogEditor(item) {
     const currentStatus = normalizeBlogStatus(item.status);
     return `
-        <form id="entity-form" class="editor-shell">
-            <div class="form-grid">
-                <div class="field">
-                    <label for="title">Title</label>
-                    <input id="title" name="title" value="${escapeAttr(item.title || "")}" required>
-                </div>
-                <div class="field">
-                    <label for="slug">Slug</label>
-                    <input id="slug" name="slug" value="${escapeAttr(item.slug || "")}" required>
-                </div>
-                <div class="field">
-                    <label for="category">Category</label>
-                    <input id="category" name="category" value="${escapeAttr(item.category || "")}" required>
-                </div>
-                <div class="field">
-                    <label for="status">Status</label>
-                    <select id="status" name="status">
-                        <option value="draft"${currentStatus === "draft" ? " selected" : ""}>Draft</option>
-                        <option value="published"${currentStatus === "published" ? " selected" : ""}>Published</option>
-                    </select>
-                </div>
-                <div class="field">
-                    <label for="thumbnail">Thumbnail URL</label>
-                    <input id="thumbnail" name="thumbnail" value="${escapeAttr(item.thumbnail || "")}" required>
-                </div>
-                <div class="field">
-                    <label for="date_published">Date Published</label>
-                    <input id="date_published" name="date_published" value="${escapeAttr(item.date_published || "")}" required>
-                </div>
-                <div class="field">
-                    <label for="last_updated">Last Updated</label>
-                    <input id="last_updated" name="last_updated" value="${escapeAttr(item.last_updated || "")}" required>
-                </div>
-                <div class="field field-span-2">
-                    <label for="description">Description</label>
-                    <textarea id="description" name="description" required>${escapeHtml(item.description || "")}</textarea>
-                </div>
-            </div>
-
-            <div class="markdown-workbench">
-                <div class="markdown-pane">
-                    <div class="pane-head">
-                        <h4>Markdown Draft</h4>
-                        <span class="meta-note">Autosaves locally while you type.</span>
+        <form id="entity-form" class="editor-shell editor-shell-blog">
+            <div class="blog-editor-layout">
+                <section class="blog-settings-panel">
+                    <div class="writing-panel-head">
+                        <div>
+                            <p class="eyebrow">Post Setup</p>
+                            <h4>Metadata and publishing</h4>
+                        </div>
+                        <p class="panel-copy">Keep the blog essentials here while the draft stays front and center.</p>
                     </div>
-                    <textarea id="markdown-editor">${escapeHtml(item.markdown || "")}</textarea>
-                </div>
 
-                <div class="preview-pane">
-                    <div class="pane-head">
-                        <h4>Live Preview</h4>
-                        <span id="preview-status" class="meta-note">Waiting for changes</span>
+                    <div class="form-grid form-grid-blog">
+                        <div class="field">
+                            <label for="title">Title</label>
+                            <input id="title" name="title" value="${escapeAttr(item.title || "")}" required>
+                        </div>
+                        <div class="field">
+                            <label for="slug">Slug</label>
+                            <input id="slug" name="slug" value="${escapeAttr(item.slug || "")}" required>
+                        </div>
+                        <div class="field">
+                            <label for="category">Category</label>
+                            <input id="category" name="category" value="${escapeAttr(item.category || "")}" required>
+                        </div>
+                        <div class="field">
+                            <label for="status">Status</label>
+                            <select id="status" name="status">
+                                <option value="draft"${currentStatus === "draft" ? " selected" : ""}>Draft</option>
+                                <option value="published"${currentStatus === "published" ? " selected" : ""}>Published</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="thumbnail">Thumbnail URL</label>
+                            <input id="thumbnail" name="thumbnail" value="${escapeAttr(item.thumbnail || "")}" required>
+                        </div>
+                        <div class="field">
+                            <label for="date_published">Date Published</label>
+                            <input id="date_published" name="date_published" value="${escapeAttr(item.date_published || "")}" required>
+                        </div>
+                        <div class="field">
+                            <label for="last_updated">Last Updated</label>
+                            <input id="last_updated" name="last_updated" value="${escapeAttr(item.last_updated || "")}" required>
+                        </div>
+                        <div class="field">
+                            <label for="description">Description</label>
+                            <textarea id="description" name="description" required>${escapeHtml(item.description || "")}</textarea>
+                        </div>
                     </div>
-                    <div id="blog-preview" class="preview-content"></div>
-                </div>
+                </section>
+
+                <section class="blog-writing-panel">
+                    <div class="writing-panel-head">
+                        <div>
+                            <p class="eyebrow">Writing Desk</p>
+                            <h4>Draft and live preview</h4>
+                        </div>
+                        <p class="panel-copy">The Markdown editor autosaves locally while you type, and the preview syncs a moment later.</p>
+                    </div>
+
+                    <div class="markdown-workbench">
+                        <div class="markdown-pane">
+                            <div class="pane-head">
+                                <h4>Markdown Draft</h4>
+                                <span class="meta-note">Formatting tools sit above the editor.</span>
+                            </div>
+                            <textarea id="markdown-editor">${escapeHtml(item.markdown || "")}</textarea>
+                        </div>
+
+                        <div class="preview-pane">
+                            <div class="pane-head">
+                                <h4>Live Preview</h4>
+                                <span id="preview-status" class="meta-note">Waiting for changes</span>
+                            </div>
+                            <div id="blog-preview" class="preview-content"></div>
+                        </div>
+                    </div>
+                </section>
             </div>
 
             <div class="editor-actions">
@@ -571,6 +760,7 @@ function bindBlogEditor(item) {
 
     state.lastSavedSnapshot = savedSnapshot;
     setDirty(snapshotForState(currentFormData()) !== savedSnapshot);
+    updatePublicLink(currentFormData());
     refreshBlogPreview(previewStatus);
 }
 
@@ -638,17 +828,47 @@ function bindDeleteButton() {
 
 function createMarkdownEditor(textarea) {
     if (window.EasyMDE) {
-        return new EasyMDE({
+        const editor = new EasyMDE({
             element: textarea,
             spellChecker: false,
-            status: false,
+            status: ["lines", "words"],
             autoDownloadFontAwesome: false,
+            forceSync: true,
+            minHeight: "38rem",
             placeholder: "Write your post in Markdown...",
+            toolbar: [
+                "heading",
+                "|",
+                "bold",
+                "italic",
+                "strikethrough",
+                "quote",
+                "|",
+                "unordered-list",
+                "ordered-list",
+                "|",
+                "link",
+                "image",
+                "table",
+                "code",
+                "|",
+                "clean-block",
+                "horizontal-rule",
+                "|",
+                "undo",
+                "redo",
+                "guide",
+            ],
             renderingConfig: {
                 singleLineBreaks: false,
                 codeSyntaxHighlighting: false,
             },
         });
+
+        window.requestAnimationFrame(() => {
+            editor.codemirror.refresh();
+        });
+        return editor;
     }
 
     return {
@@ -766,8 +986,25 @@ function updateDirtyState() {
 
 function setDirty(isDirty) {
     state.dirty = isDirty;
-    dom.saveStatus.textContent = isDirty ? "Unsaved changes" : "Saved";
-    dom.saveStatus.classList.toggle("is-dirty", isDirty);
+    renderSaveStatus();
+}
+
+function setStatusOverride(message) {
+    state.statusOverride = message || "";
+    renderSaveStatus();
+}
+
+function renderSaveStatus() {
+    if (state.statusOverride) {
+        dom.saveStatus.textContent = state.statusOverride;
+        dom.saveStatus.classList.remove("is-dirty");
+        dom.saveStatus.classList.add("is-saving");
+        return;
+    }
+
+    dom.saveStatus.textContent = state.dirty ? "Unsaved changes" : "Saved";
+    dom.saveStatus.classList.toggle("is-dirty", state.dirty);
+    dom.saveStatus.classList.remove("is-saving");
 }
 
 function confirmDiscardIfNeeded() {
