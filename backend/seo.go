@@ -34,6 +34,7 @@ type sitemapURLSet struct {
 var sitemapStaticPages = []sitemapPage{
 	{Path: "/"},
 	{Path: "/blog"},
+	{Path: "/pieces"},
 	{Path: "/projects"},
 }
 
