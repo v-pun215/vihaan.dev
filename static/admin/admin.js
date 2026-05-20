@@ -14,6 +14,10 @@ const state = {
     statusOverride: "",
     draggedEntryId: null,
     reorderInFlight: false,
+    blogDates: {
+        datePublished: "",
+        lastUpdated: "",
+    },
 };
 
 const dom = {
@@ -163,6 +167,10 @@ async function setSection(sectionName) {
     state.draggedEntryId = null;
     state.reorderInFlight = false;
     state.statusOverride = "";
+    state.blogDates = {
+        datePublished: "",
+        lastUpdated: "",
+    };
     dom.listSearch.value = "";
     updateSectionChrome();
     await loadCurrentSection();
@@ -501,6 +509,10 @@ function startNewEntry(options = {}) {
 function renderEditor(item) {
     state.tags = Array.isArray(item.tags) ? [...item.tags] : [];
     state.slugTouched = state.mode === "edit";
+    state.blogDates = {
+        datePublished: item && typeof item.date_published === "string" ? item.date_published : "",
+        lastUpdated: item && typeof item.last_updated === "string" ? item.last_updated : "",
+    };
 
     if (state.section === "blogs") {
         dom.editorRoot.innerHTML = renderBlogEditor(item);
@@ -523,6 +535,8 @@ function renderEditor(item) {
 
 function renderBlogEditor(item) {
     const currentStatus = normalizeBlogStatus(item.status);
+    const hasPublishedDate = Boolean(item.date_published);
+    const hasUpdatedDate = Boolean(item.last_updated);
     return `
         <form id="entity-form" class="editor-shell editor-shell-blog">
             <div class="blog-editor-layout">
@@ -559,15 +573,20 @@ function renderBlogEditor(item) {
                             <label for="thumbnail">Thumbnail URL</label>
                             <input id="thumbnail" name="thumbnail" value="${escapeAttr(item.thumbnail || "")}" required>
                         </div>
-                        <div class="field">
-                            <label for="date_published">Date Published</label>
-                            <input id="date_published" name="date_published" value="${escapeAttr(item.date_published || "")}" required>
+                        <div class="field field-span-2 field-static">
+                            <span class="field-label">Automatic timestamps</span>
+                            <div class="auto-meta-card">
+                                <div>
+                                    <span class="auto-meta-label">Uploaded</span>
+                                    <strong>${escapeHtml(hasPublishedDate ? item.date_published : "Set automatically on first save")}</strong>
+                                </div>
+                                <div>
+                                    <span class="auto-meta-label">Updated</span>
+                                    <strong>${escapeHtml(hasUpdatedDate ? item.last_updated : "Refreshes automatically every save")}</strong>
+                                </div>
+                            </div>
                         </div>
-                        <div class="field">
-                            <label for="last_updated">Last Updated</label>
-                            <input id="last_updated" name="last_updated" value="${escapeAttr(item.last_updated || "")}" required>
-                        </div>
-                        <div class="field">
+                        <div class="field field-span-2">
                             <label for="description">Description</label>
                             <textarea id="description" name="description" required>${escapeHtml(item.description || "")}</textarea>
                         </div>
@@ -580,7 +599,7 @@ function renderBlogEditor(item) {
                             <p class="eyebrow">Writing Desk</p>
                             <h4>Draft and live preview</h4>
                         </div>
-                        <p class="panel-copy">The Markdown editor autosaves locally while you type, and the preview syncs a moment later.</p>
+                        <p class="panel-copy">The Markdown editor autosaves locally while you type, the preview syncs a moment later, and blog timestamps are managed automatically.</p>
                     </div>
 
                     <div class="markdown-workbench">
@@ -713,8 +732,6 @@ function bindBlogEditor(item) {
         category: item.category || "",
         status: normalizeBlogStatus(item.status),
         thumbnail: item.thumbnail || "",
-        date_published: item.date_published || "",
-        last_updated: item.last_updated || "",
         description: item.description || "",
         markdown: item.markdown || "",
     });
@@ -952,8 +969,6 @@ function currentFormData() {
             category: valueOf("category"),
             status: normalizeBlogStatus(valueOf("status") || "draft"),
             thumbnail: valueOf("thumbnail"),
-            date_published: valueOf("date_published"),
-            last_updated: valueOf("last_updated"),
             description: valueOf("description"),
             markdown: state.editor ? state.editor.value() : valueOf("markdown-editor"),
         };
@@ -1021,15 +1036,14 @@ function valueOf(id) {
 
 function defaultItemForSection(section) {
     if (section === "blogs") {
-        const today = humanDate();
         return {
             title: "",
             slug: "",
             category: "",
             status: "draft",
             thumbnail: "",
-            date_published: today,
-            last_updated: today,
+            date_published: "",
+            last_updated: "",
             description: "",
             markdown: "",
         };
@@ -1136,8 +1150,6 @@ function hydrateBlogForm(data) {
         "category",
         "status",
         "thumbnail",
-        "date_published",
-        "last_updated",
         "description",
     ];
     mappings.forEach((key) => {
@@ -1177,9 +1189,9 @@ async function refreshBlogPreview(previewStatus) {
                 <p class="eyebrow">${escapeHtml(data.category || "Draft preview")}</p>
                 <h1>${escapeHtml(data.title || "Untitled post")}</h1>
                 <p>${escapeHtml(data.description || "Add a description to see how the article intro will read.")}</p>
-                <p>${escapeHtml([data.date_published, data.last_updated ? `Updated ${data.last_updated}` : ""].filter(Boolean).join(" • "))}</p>
+                <p>${escapeHtml(currentBlogPreviewMeta())}</p>
             </div>
-            <div>${response.html || ""}</div>
+            <div class="markdown-rendered">${response.html || ""}</div>
         `;
         previewStatus.textContent = "Preview synced";
     } catch (error) {
@@ -1217,6 +1229,20 @@ function getItemId(item) {
         return item.id.$oid;
     }
     return String(item.id);
+}
+
+function currentBlogPreviewMeta() {
+    const parts = [];
+    if (state.blogDates.datePublished) {
+        parts.push(state.blogDates.datePublished);
+    }
+    if (state.blogDates.lastUpdated) {
+        parts.push(`Updated ${state.blogDates.lastUpdated}`);
+    }
+    if (parts.length > 0) {
+        return parts.join(" • ");
+    }
+    return "Publish and updated dates will be assigned automatically when you save.";
 }
 
 async function fetchJSON(url, options = {}) {
@@ -1268,14 +1294,6 @@ function slugify(value) {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
-}
-
-function humanDate() {
-    return new Date().toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-    });
 }
 
 function showLoginError(message) {

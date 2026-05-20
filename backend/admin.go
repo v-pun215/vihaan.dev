@@ -321,6 +321,8 @@ func adminCreateBlogHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	blog = normalizeAdminBlog(blog)
+	blog.DatePublished = currentBlogDisplayDate()
+	blog.LastUpdated = blog.DatePublished
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
@@ -374,15 +376,13 @@ func adminUpdateBlogHandler(w http.ResponseWriter, r *http.Request) {
 	blog = normalizeAdminBlog(blog)
 
 	updates := bson.M{
-		"slug":           blog.Slug,
-		"title":          strings.TrimSpace(blog.Title),
-		"thumbnail":      strings.TrimSpace(blog.Thumbnail),
-		"category":       strings.TrimSpace(blog.Category),
-		"date_published": strings.TrimSpace(blog.DatePublished),
-		"last_updated":   strings.TrimSpace(blog.LastUpdated),
-		"description":    strings.TrimSpace(blog.Description),
-		"markdown":       blog.Markdown,
-		"status":         blog.Status,
+		"slug":        blog.Slug,
+		"title":       strings.TrimSpace(blog.Title),
+		"thumbnail":   strings.TrimSpace(blog.Thumbnail),
+		"category":    strings.TrimSpace(blog.Category),
+		"description": strings.TrimSpace(blog.Description),
+		"markdown":    blog.Markdown,
+		"status":      blog.Status,
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)

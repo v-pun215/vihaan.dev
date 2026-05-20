@@ -505,6 +505,11 @@ select {
     font-size: 0.9rem;
 }
 
+.field-label {
+    color: var(--admin-muted);
+    font-size: 0.9rem;
+}
+
 .field textarea {
     min-height: 8rem;
     resize: vertical;
@@ -512,6 +517,34 @@ select {
 
 .field.field-span-2 {
     grid-column: 1 / -1;
+}
+
+.field-static {
+    align-content: start;
+}
+
+.auto-meta-card {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid var(--admin-border);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.auto-meta-card strong {
+    display: block;
+    margin-top: 0.3rem;
+    color: var(--admin-text);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.auto-meta-label {
+    color: var(--admin-accent);
+    font-size: 0.78rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 }
 
 .markdown-workbench {
@@ -591,6 +624,125 @@ select {
 .preview-content li,
 .preview-content blockquote {
     line-height: 1.85;
+}
+
+.preview-content .markdown-rendered > *:first-child {
+    margin-top: 0;
+}
+
+.preview-content .markdown-rendered > *:last-child {
+    margin-bottom: 0;
+}
+
+.preview-content .markdown-rendered p,
+.preview-content .markdown-rendered ul,
+.preview-content .markdown-rendered ol,
+.preview-content .markdown-rendered pre,
+.preview-content .markdown-rendered blockquote,
+.preview-content .markdown-rendered hr,
+.preview-content .markdown-rendered .markdown-table-wrap {
+    margin-top: 0;
+    margin-bottom: 1.1rem;
+}
+
+.preview-content .markdown-rendered ul,
+.preview-content .markdown-rendered ol {
+    padding-left: 1.35rem;
+}
+
+.preview-content .markdown-rendered li + li {
+    margin-top: 0.35rem;
+}
+
+.preview-content .markdown-rendered a {
+    color: var(--admin-accent);
+}
+
+.preview-content .markdown-rendered strong {
+    color: #ffffff;
+}
+
+.preview-content .markdown-rendered code {
+    padding: 0.14rem 0.38rem;
+    border-radius: 0.45rem;
+    border: 1px solid rgba(89, 231, 221, 0.16);
+    background: rgba(89, 231, 221, 0.08);
+    color: #aefbf5;
+}
+
+.preview-content .markdown-rendered pre {
+    padding: 1rem 1.1rem;
+    border-radius: 18px;
+    overflow-x: auto;
+    background: rgba(8, 13, 18, 0.84);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.preview-content .markdown-rendered pre code {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+}
+
+.preview-content .markdown-rendered blockquote {
+    margin-left: 0;
+    padding: 0.95rem 1rem;
+    border-left: 3px solid var(--admin-accent);
+    border-radius: 0 16px 16px 0;
+    background: rgba(89, 231, 221, 0.07);
+    color: #c7d7e7;
+}
+
+.preview-content .markdown-rendered blockquote > *:last-child {
+    margin-bottom: 0;
+}
+
+.preview-content .markdown-rendered hr {
+    border: 0;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(89, 231, 221, 0), rgba(89, 231, 221, 0.5), rgba(89, 231, 221, 0));
+}
+
+.preview-content .markdown-rendered .markdown-table-wrap {
+    overflow-x: auto;
+    border-radius: 18px;
+    border: 1px solid var(--admin-border);
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.preview-content .markdown-rendered table {
+    width: 100%;
+    min-width: 30rem;
+    border-collapse: collapse;
+}
+
+.preview-content .markdown-rendered th,
+.preview-content .markdown-rendered td {
+    padding: 0.8rem 0.9rem;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.preview-content .markdown-rendered th {
+    color: #f6fbff;
+    background: rgba(89, 231, 221, 0.08);
+}
+
+.preview-content .markdown-rendered tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.preview-content .markdown-rendered tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.preview-content .markdown-rendered img {
+    display: block;
+    max-width: 100%;
+    margin: 1.2rem auto;
+    border-radius: 16px;
 }
 
 .preview-header {

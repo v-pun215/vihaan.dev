@@ -400,9 +400,7 @@ func updateBlogByID(ctx context.Context, idHex string, updates bson.M) (int64, e
 		updates["status"] = normalized
 	}
 
-	if _, ok := updates["markdown"]; ok {
-		updates["last_updated"] = time.Now().Format("January 2 2006")
-	}
+	updates["last_updated"] = currentBlogDisplayDate()
 
 	res, err := blogCollection.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": updates})
 	if err != nil {
@@ -783,10 +781,20 @@ func publishedBlogFilter() bson.M {
 	}
 }
 
+func currentBlogDisplayDate() string {
+	return time.Now().Format("January 2 2006")
+}
+
+func wrapMarkdownTables(rendered string) string {
+	rendered = strings.ReplaceAll(rendered, "<table>", `<div class="markdown-table-wrap"><table>`)
+	rendered = strings.ReplaceAll(rendered, "</table>", "</table></div>")
+	return rendered
+}
+
 func renderMarkdown(markdown string) (template.HTML, error) {
 	var out bytes.Buffer
 	if err := blogMarkdown.Convert([]byte(markdown), &out); err != nil {
 		return "", err
 	}
-	return template.HTML(out.String()), nil
+	return template.HTML(wrapMarkdownTables(out.String())), nil
 }
