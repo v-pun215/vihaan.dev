@@ -73,28 +73,12 @@ function renderProjectMedia(project) {
     return `<img class="project-card-image" src="${escapeHTML(thumbnail)}" alt="${escapeHTML(project?.title || "Project thumbnail")}" onerror="this.onerror=null;this.src='/img/post.avif';">`;
 }
 
-function readProjectTags(project) {
-    const candidates = [project?.tags, project?.project_tags];
-
-    for (const candidate of candidates) {
-        if (Array.isArray(candidate)) {
-            return candidate.map((tag) => trimmedText(tag)).filter(Boolean);
-        }
-        if (typeof candidate === "string") {
-            return candidate.split(",").map((tag) => trimmedText(tag)).filter(Boolean);
-        }
-    }
-
-    return [];
-}
-
 function renderProject(project) {
     const title = escapeHTML(project?.title);
     const description = escapeHTML(project?.description);
     const dateRange = renderProjectDate(project);
     const websiteLink = normalizeExternalURL(project?.website_link);
     const githubLink = normalizeExternalURL(project?.github_link);
-    const tags = readProjectTags(project);
 
     let links = "";
     if (websiteLink) {
@@ -103,10 +87,6 @@ function renderProject(project) {
     if (githubLink) {
         links += `<a class="project-link" href="${escapeHTML(githubLink)}" target="_blank" rel="noreferrer">GitHub</a>`;
     }
-
-    const tagsMarkup = tags.length
-        ? `<div class="project-card-tags">${tags.map((tag) => `<span class="project-tag">${escapeHTML(tag)}</span>`).join("")}</div>`
-        : "";
 
     return `
         <article class="project-card">
@@ -117,7 +97,6 @@ function renderProject(project) {
                 <h2 class="project-card-title">${title}</h2>
                 ${dateRange ? `<p class="project-card-date">${escapeHTML(dateRange)}</p>` : ""}
                 <p class="project-card-description">${description}</p>
-                ${tagsMarkup}
             </div>
             ${links ? `<div class="project-card-links">${links}</div>` : ""}
         </article>
