@@ -420,7 +420,7 @@ button, input, textarea, select { font: inherit; }
 .preview-card .preview-thumb img { width: 100%; border-radius: 16px; aspect-ratio: 32/11; object-fit: cover; border: 1px solid var(--line); }
 .preview-body { padding: 24px 28px 28px; font-size: 1.08rem; line-height: 1.85; }
 .markdown-rendered > p:first-child { font-size: 1.18rem; color: rgba(244,240,232,0.9); }
-.markdown-rendered h2, .markdown-rendered h3 { font-family: var(--heading-font); }
+.markdown-rendered h2, .markdown-rendered h3 { font-family: var(--heading-font); font-weight: 400; }
 .markdown-rendered a { color: var(--color-teal); }
 .markdown-rendered pre { background: #141110; border: 1px solid var(--line); border-radius: 14px; padding: 16px; overflow-x: auto; }
 .markdown-rendered code { font-family: var(--mono-font); background: rgba(232,168,92,0.1); padding: 1px 6px; border-radius: 6px; }

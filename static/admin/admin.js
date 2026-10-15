@@ -1086,7 +1086,7 @@ function refreshPreviewHeader() {
   setText("pv-desc", d.description || "Add a description to see the intro.");
   const meta = [];
   if (state.blogDates.datePublished) meta.push(state.blogDates.datePublished);
-  if (state.blogDates.lastUpdated) meta.push("Updated " + state.blogDates.lastUpdated);
+  if (state.blogDates.lastUpdated) meta.push("updated " + state.blogDates.lastUpdated);
   setText("pv-meta", meta.length ? meta.join(" • ") : "Dates assign automatically on save.");
   const img = document.getElementById("pv-thumb");
   if (img) {

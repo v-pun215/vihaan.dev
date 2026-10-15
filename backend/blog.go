@@ -42,6 +42,13 @@ type viewPost struct {
 	DatePublished string
 	Thumbnail     string
 	Link          string
+	ReadingTime   int
+}
+
+type tocEntry struct {
+	Level int
+	Text  string
+	ID    string
 }
 
 type blogListPageData struct {
@@ -52,16 +59,27 @@ type blogListPageData struct {
 }
 
 type blogPageData struct {
-	Title         string
-	Description   string
-	Category      string
-	DatePublished string
-	LastUpdated   string
-	Thumbnail     string
-	CanonicalURL  string
-	OGImageURL    string
-	JSONLD        template.JS
-	Content       template.HTML
+	Title            string
+	Description      string
+	Category         string
+	DatePublished    string
+	LastUpdated      string
+	Thumbnail        string
+	CanonicalURL     string
+	OGImageURL       string
+	Slug             string
+	JSONLD           template.JS
+	Content          template.HTML
+	ReadingTime      int
+	WordCount        int
+	WordCountFmt     string
+	Headings         []tocEntry
+	HasTOC           bool
+	PrevPost         *viewPost
+	NextPost         *viewPost
+	Related          []viewPost
+	DatePublishedISO string
+	LastUpdatedISO   string
 }
 
 var blogMarkdown = goldmark.New(
@@ -102,6 +120,7 @@ func blogListHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("blogListHandler: ensure slug error: %v", err)
 			return
 		}
+		normalizeBlogDisplayDates(&posts[i])
 		view = append(view, viewPost{
 			Title:         posts[i].Title,
 			Description:   posts[i].Description,
@@ -109,6 +128,7 @@ func blogListHandler(w http.ResponseWriter, r *http.Request) {
 			DatePublished: posts[i].DatePublished,
 			Thumbnail:     posts[i].Thumbnail,
 			Link:          "/blog/" + url.PathEscape(posts[i].Slug),
+			ReadingTime:   readingTimeMinutes(countWords(posts[i].Markdown)),
 		})
 	}
 
@@ -161,6 +181,7 @@ func blogPostPageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/blog/"+url.PathEscape(post.Slug), http.StatusMovedPermanently)
 		return
 	}
+	normalizeBlogDisplayDates(&post)
 
 	content, err := renderMarkdown(post.Markdown)
 	if err != nil {
@@ -169,17 +190,45 @@ func blogPostPageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	words := countWords(post.Markdown)
+	readMins := readingTimeMinutes(words)
+	headings, contentWithIDs := tocFromRenderedHTML(string(content))
+	content = template.HTML(contentWithIDs)
+
+	var datePubISO, lastUpdISO string
+	if t, ok := parseSEODate(post.DatePublished); ok {
+		datePubISO = t.Format("2006-01-02")
+	}
+	if t, ok := parseSEODate(post.LastUpdated); ok {
+		lastUpdISO = t.Format("2006-01-02")
+	}
+
+	prevPost := findAdjacentPost(ctx, post, false)
+	nextPost := findAdjacentPost(ctx, post, true)
+	related := findRelatedPosts(ctx, post, 3)
+
 	page := blogPageData{
-		Title:         post.Title,
-		Description:   post.Description,
-		Category:      post.Category,
-		DatePublished: post.DatePublished,
-		LastUpdated:   post.LastUpdated,
-		Thumbnail:     post.Thumbnail,
-		CanonicalURL:  absoluteURL(r, "/blog/"+url.PathEscape(post.Slug)),
-		OGImageURL:    absoluteAssetURL(r, post.Thumbnail, "/img/post.avif"),
-		JSONLD:        articleJSONLD(r, post),
-		Content:       content,
+		Title:            post.Title,
+		Description:      post.Description,
+		Category:         post.Category,
+		DatePublished:    post.DatePublished,
+		LastUpdated:      post.LastUpdated,
+		Thumbnail:        post.Thumbnail,
+		CanonicalURL:     absoluteURL(r, "/blog/"+url.PathEscape(post.Slug)),
+		OGImageURL:       absoluteAssetURL(r, post.Thumbnail, "/img/post.avif"),
+		Slug:             post.Slug,
+		JSONLD:           articleJSONLD(r, post),
+		Content:          content,
+		ReadingTime:      readMins,
+		WordCount:        words,
+		WordCountFmt:     formatWordCount(words),
+		Headings:         headings,
+		HasTOC:           len(headings) >= 2,
+		PrevPost:         prevPost,
+		NextPost:         nextPost,
+		Related:          related,
+		DatePublishedISO: datePubISO,
+		LastUpdatedISO:   lastUpdISO,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -220,6 +269,7 @@ func all_blogs_handler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "failed to prepare blog posts", http.StatusInternalServerError)
 			return
 		}
+		normalizeBlogDisplayDates(&blogs[i])
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -529,6 +579,7 @@ func getBlogHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"failed to load post"}`, http.StatusInternalServerError)
 		return
 	}
+	normalizeBlogDisplayDates(&blog)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(blog)
@@ -588,6 +639,7 @@ func searchBlogHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, `{"error":"search failed"}`, http.StatusInternalServerError)
 			return
 		}
+		normalizeBlogDisplayDates(&results[i])
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -785,6 +837,24 @@ func currentBlogDisplayDate() string {
 	return time.Now().Format("January 2 2006")
 }
 
+// canonicalBlogDisplayDate reformats legacy stored dates such as
+// "May 20, 2026" into the current display format "May 20 2026".
+// Unparseable values pass through untouched.
+func canonicalBlogDisplayDate(value string) string {
+	if t, ok := parseSEODate(strings.TrimSpace(value)); ok {
+		return t.Format("January 2 2006")
+	}
+	return value
+}
+
+func normalizeBlogDisplayDates(blog *BlogPost) {
+	if blog == nil {
+		return
+	}
+	blog.DatePublished = canonicalBlogDisplayDate(blog.DatePublished)
+	blog.LastUpdated = canonicalBlogDisplayDate(blog.LastUpdated)
+}
+
 func wrapMarkdownTables(rendered string) string {
 	rendered = strings.ReplaceAll(rendered, "<table>", `<div class="markdown-table-wrap"><table>`)
 	rendered = strings.ReplaceAll(rendered, "</table>", "</table></div>")
@@ -797,4 +867,211 @@ func renderMarkdown(markdown string) (template.HTML, error) {
 		return "", err
 	}
 	return template.HTML(wrapMarkdownTables(out.String())), nil
+}
+
+var (
+	postHeadingRe = regexp.MustCompile(`(?s)<h[23][^>]*>.*?</h[23]>`)
+	postHTMLTagRe = regexp.MustCompile(`<[^>]+>`)
+	postFenceRe   = regexp.MustCompile("(?s)```.*?```|~~~.*?~~~")
+	postImgRe     = regexp.MustCompile(`!\[([^\]]*)\]\([^)]*\)`)
+	postLinkRe    = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`)
+	postATXRe     = regexp.MustCompile(`(?m)^\s{0,3}#{1,6}\s+`)
+	postQuoteRe   = regexp.MustCompile(`(?m)^\s{0,3}>\s?`)
+	postListRe    = regexp.MustCompile(`(?m)^\s*([-*+]|\d+\.)\s+`)
+	postRuleRe    = regexp.MustCompile(`(?m)^\s*(\*\*\*|---|___)\s*$`)
+)
+
+func stripMarkdownToText(md string) string {
+	s := postFenceRe.ReplaceAllString(md, " ")
+	s = postImgRe.ReplaceAllString(s, "$1")
+	s = postLinkRe.ReplaceAllString(s, "$1")
+	s = postATXRe.ReplaceAllString(s, "")
+	s = postQuoteRe.ReplaceAllString(s, "")
+	s = postListRe.ReplaceAllString(s, "")
+	s = postRuleRe.ReplaceAllString(s, " ")
+	s = postHTMLTagRe.ReplaceAllString(s, " ")
+	s = strings.ReplaceAll(s, "`", "")
+	s = strings.ReplaceAll(s, "*", "")
+	s = strings.ReplaceAll(s, "_", "")
+	s = strings.ReplaceAll(s, "~", "")
+	s = strings.ReplaceAll(s, "#", "")
+	s = strings.ReplaceAll(s, "|", " ")
+	return strings.Join(strings.Fields(s), " ")
+}
+
+func countWords(md string) int {
+	return len(strings.Fields(stripMarkdownToText(md)))
+}
+
+func readingTimeMinutes(words int) int {
+	if words <= 0 {
+		return 1
+	}
+	mins := (words + 199) / 200
+	if mins < 1 {
+		return 1
+	}
+	return mins
+}
+
+func formatWordCount(n int) string {
+	if n < 1000 {
+		return fmt.Sprintf("%d", n)
+	}
+	s := fmt.Sprintf("%d", n)
+	out := make([]byte, 0, len(s)+2)
+	rem := len(s) % 3
+	if rem == 0 {
+		rem = 3
+	}
+	out = append(out, s[:rem]...)
+	for i := rem; i < len(s); i += 3 {
+		out = append(out, ',')
+		out = append(out, s[i:i+3]...)
+	}
+	return string(out)
+}
+
+func stripPostHTMLTags(s string) string {
+	return postHTMLTagRe.ReplaceAllString(s, "")
+}
+
+// tocFromRenderedHTML builds a table of contents from the rendered h2/h3
+// elements and injects stable id attributes back into the HTML so the
+// template links and the rendered headings always agree.
+func tocFromRenderedHTML(rendered string) ([]tocEntry, string) {
+	matches := postHeadingRe.FindAllString(rendered, -1)
+	if len(matches) == 0 {
+		return nil, rendered
+	}
+	if len(matches) > 20 {
+		matches = matches[:20]
+	}
+	seen := make(map[string]int, len(matches))
+	headings := make([]tocEntry, 0, len(matches))
+	out := rendered
+	for _, m := range matches {
+		level := 2
+		if strings.HasPrefix(m, "<h3") {
+			level = 3
+		}
+		gt := strings.Index(m, ">")
+		end := strings.LastIndex(m, "</h")
+		if gt < 0 || end < 0 || end <= gt {
+			continue
+		}
+		inner := m[gt+1 : end]
+		plain := strings.Join(strings.Fields(stripPostHTMLTags(inner)), " ")
+		if plain == "" {
+			continue
+		}
+		base := normalizeSlug(plain)
+		if base == "" {
+			base = "section"
+		}
+		id := base
+		if n := seen[base]; n > 0 {
+			id = fmt.Sprintf("%s-%d", base, n+1)
+		}
+		seen[base]++
+		headings = append(headings, tocEntry{Level: level, Text: plain, ID: id})
+		var replacement string
+		if level == 3 {
+			replacement = `<h3 id="` + id + `">` + inner + `</h3>`
+		} else {
+			replacement = `<h2 id="` + id + `">` + inner + `</h2>`
+		}
+		out = strings.Replace(out, m, replacement, 1)
+	}
+	return headings, out
+}
+
+func publishedViewPost(b BlogPost) viewPost {
+	return viewPost{
+		Title:         b.Title,
+		Description:   b.Description,
+		Category:      b.Category,
+		DatePublished: b.DatePublished,
+		Thumbnail:     b.Thumbnail,
+		Link:          "/blog/" + url.PathEscape(b.Slug),
+		ReadingTime:   readingTimeMinutes(countWords(b.Markdown)),
+	}
+}
+
+// findAdjacentPost returns the newer (newer=true) or older (newer=false)
+// published post relative to current, or nil when there isn't one.
+func findAdjacentPost(ctx context.Context, current BlogPost, newer bool) *viewPost {
+	if current.ID.IsZero() {
+		return nil
+	}
+	var cmp bson.M
+	sortDir := 1
+	if newer {
+		cmp = bson.M{"$gt": current.ID}
+		sortDir = 1
+	} else {
+		cmp = bson.M{"$lt": current.ID}
+		sortDir = -1
+	}
+	filter := bson.M{
+		"$and": []bson.M{
+			publishedBlogFilter(),
+			{"_id": cmp},
+		},
+	}
+	var b BlogPost
+	err := blogCollection.FindOne(ctx, filter, options.FindOne().SetSort(bson.D{{Key: "_id", Value: sortDir}})).Decode(&b)
+	if err != nil {
+		return nil
+	}
+	if err := ensureBlogSlug(ctx, &b); err != nil {
+		return nil
+	}
+	vp := publishedViewPost(b)
+	return &vp
+}
+
+// findRelatedPosts returns up to limit recent published posts excluding the
+// current one, preferring the same category first.
+func findRelatedPosts(ctx context.Context, current BlogPost, limit int) []viewPost {
+	if limit <= 0 {
+		return nil
+	}
+	filter := bson.M{
+		"$and": []bson.M{
+			publishedBlogFilter(),
+			{"_id": bson.M{"$ne": current.ID}},
+		},
+	}
+	cur, err := blogCollection.Find(ctx, filter,
+		options.Find().SetSort(bson.D{{Key: "_id", Value: -1}}).SetLimit(int64(limit+3)))
+	if err != nil {
+		return nil
+	}
+	defer cur.Close(ctx)
+	var posts []BlogPost
+	if err := cur.All(ctx, &posts); err != nil {
+		return nil
+	}
+	same := make([]BlogPost, 0, len(posts))
+	other := make([]BlogPost, 0, len(posts))
+	for i := range posts {
+		if err := ensureBlogSlug(ctx, &posts[i]); err != nil {
+			continue
+		}
+		if current.Category != "" && posts[i].Category == current.Category {
+			same = append(same, posts[i])
+		} else {
+			other = append(other, posts[i])
+		}
+	}
+	ordered := append(same, other...)
+	if len(ordered) > limit {
+		ordered = ordered[:limit]
+	}
+	out := make([]viewPost, 0, len(ordered))
+	for _, b := range ordered {
+		out = append(out, publishedViewPost(b))
+	}
+	return out
 }

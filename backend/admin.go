@@ -309,6 +309,7 @@ func adminListBlogsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		blogs[i] = normalizeAdminBlog(blogs[i])
+		normalizeBlogDisplayDates(&blogs[i])
 	}
 
 	writeJSON(w, http.StatusOK, blogs)
@@ -364,6 +365,7 @@ func adminGetBlogHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	blog = normalizeAdminBlog(blog)
+	normalizeBlogDisplayDates(&blog)
 	writeJSON(w, http.StatusOK, blog)
 }
 

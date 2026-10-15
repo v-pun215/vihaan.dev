@@ -11,6 +11,9 @@
   <meta property="og:url" content="{{ .CanonicalURL }}">
   <meta property="og:image" content="{{ .OGImageURL }}">
   <meta property="og:site_name" content="Vihaan Pundir">
+  {{ if .DatePublishedISO }}<meta property="article:published_time" content="{{ .DatePublishedISO }}">{{ end }}
+  {{ if .LastUpdatedISO }}<meta property="article:modified_time" content="{{ .LastUpdatedISO }}">{{ end }}
+  {{ if .Category }}<meta property="article:section" content="{{ .Category }}">{{ end }}
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ .Title }} | Vihaan Pundir">
   <meta name="twitter:description" content="{{ .Description }}">
@@ -43,6 +46,8 @@
     </div>
   </div>
 
+  <div class="reading-progress" aria-hidden="true"><span id="reading-progress-fill"></span></div>
+
   <main class="post-page">
     <article class="post-shell">
       <header class="post-hero">
@@ -52,11 +57,12 @@
           <span>{{ .Category }}</span>
           {{ if .LastUpdated }}
             <span>&bull;</span>
-            <span>Updated {{ .LastUpdated }}</span>
+            <span>updated {{ .LastUpdated }}</span>
           {{ end }}
         </div>
         <h1 class="post-title">{{ .Title }}</h1>
         <p class="post-description">{{ .Description }}</p>
+        <p class="post-submeta"><span class="read-time">{{ .ReadingTime }} min read</span> <span>&bull;</span> <span>{{ .WordCountFmt }} words</span></p>
       </header>
 
       {{ if .Thumbnail }}
@@ -70,8 +76,36 @@
           {{ .Content }}
         </section>
       </div>
+
+      <div class="share-row">
+        <span class="share-label">Share</span>
+        <a class="share-btn" href="https://twitter.com/intent/tweet?text={{ .Title | urlquery }}&amp;url={{ .CanonicalURL | urlquery }}" target="_blank" rel="noopener noreferrer">Post on X</a>
+        <a class="share-btn" href="https://www.linkedin.com/sharing/share-offsite/?url={{ .CanonicalURL | urlquery }}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        <button class="share-btn" id="copy-link" type="button" data-url="{{ .CanonicalURL }}">Copy link</button>
+        <span class="share-feedback" id="copy-feedback" role="status" aria-live="polite"></span>
+      </div>
+
+      {{ if or .PrevPost .NextPost }}
+      <nav class="prevnext" aria-label="More posts">
+        {{ if .NextPost }}
+        <a class="pn-card" href="{{ .NextPost.Link }}">
+          <span class="pn-label">&larr; Newer</span>
+          <strong>{{ .NextPost.Title }}</strong>
+          <span class="pn-meta">{{ .NextPost.DatePublished }} &middot; {{ .NextPost.ReadingTime }} min read</span>
+        </a>
+        {{ end }}
+        {{ if .PrevPost }}
+        <a class="pn-card pn-next" href="{{ .PrevPost.Link }}">
+          <span class="pn-label">Older &rarr;</span>
+          <strong>{{ .PrevPost.Title }}</strong>
+          <span class="pn-meta">{{ .PrevPost.DatePublished }} &middot; {{ .PrevPost.ReadingTime }} min read</span>
+        </a>
+        {{ end }}
+      </nav>
+      {{ end }}
     </article>
   </main>
   <script src="/js/nav.js"></script>
+  <script src="/js/post.js"></script>
 </body>
 </html>

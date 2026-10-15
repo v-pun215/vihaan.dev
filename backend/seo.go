@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -212,6 +213,11 @@ func articleJSONLD(r *http.Request, post BlogPost) template.JS {
 	}
 	if updatedAt, ok := parseSEODate(post.LastUpdated); ok {
 		payload["dateModified"] = updatedAt.Format(time.RFC3339)
+	}
+
+	if words := countWords(post.Markdown); words > 0 {
+		payload["wordCount"] = words
+		payload["timeRequired"] = fmt.Sprintf("PT%dM", readingTimeMinutes(words))
 	}
 
 	raw, err := json.Marshal(payload)
