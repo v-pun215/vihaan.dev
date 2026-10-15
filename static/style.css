@@ -154,7 +154,9 @@
   --nav-width:800px;
   --color-muted:#C9C0B5;
 }
-
+h2 {
+  font-weight: 500;
+}
 html {
   scrollbar-gutter: stable;
 }
@@ -1435,4 +1437,24 @@ body.pieces-page-body::before {
   width: 0;
   background: linear-gradient(90deg, var(--color-teal), #F3C078);
   border-radius: 0 3px 3px 0;
+}
+
+.home-quote {
+  margin: 0 0 1.1rem;
+  padding: 1rem 1.2rem 1rem 1.1rem;
+  border-left: 3px solid var(--color-teal);
+  border-radius: 0 5px 5px 0;
+  background: rgba(232, 168, 92, 0.07);
+  color: rgba(244, 240, 232, 0.78);
+  text-align: left;
+}
+.home-quote p {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+.home-quote cite {
+  font-style: normal;
+  font-size: 0.9rem;
+  color: var(--color-teal);
 }
