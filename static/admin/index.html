@@ -6,91 +6,104 @@
     <meta name="robots" content="noindex,nofollow">
     <link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
     <title>Admin | Vihaan Pundir</title>
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
     <link rel="stylesheet" href="/admin/assets/admin.css">
 </head>
 <body>
+    <!-- Login -->
     <div id="login-view" class="auth-screen hidden">
-        <div class="auth-panel">
-            <div class="auth-badge">Internal CMS</div>
-            <h1>Admin</h1>
-            <p>Manage blog posts, projects, and pieces from one place.</p>
-
-            <form id="login-form" class="auth-form">
-                <label for="password">Password</label>
-                <input id="password" name="password" type="password" autocomplete="current-password" required>
-                <button type="submit">Enter Dashboard</button>
-            </form>
-
-            <p id="login-error" class="form-error hidden"></p>
+        <div class="top-bar">
+            <div class="links">
+                <a class="name" href="/">Vihaan Pundir</a>
+                <div class="right-links"><span class="mono-dim">admin</span></div>
+            </div>
+        </div>
+        <div class="auth-wrap">
+            <div class="auth-panel">
+                <h1>Log in to the admin dashboard</h1>
+                <form id="login-form" class="auth-form" autocomplete="off">
+                    <label for="password">Password</label>
+                    <input id="password" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+                    <button type="submit">Enter dashboard</button>
+                </form>
+                <p id="login-error" class="form-error hidden"></p>
+            </div>
         </div>
     </div>
 
-    <div id="app-view" class="admin-shell hidden">
-        <aside class="admin-sidebar">
-            <div class="admin-brand">
-                <p class="eyebrow">Vihaan Pundir</p>
-                <h1>Content Admin</h1>
-                <p class="sidebar-copy">A neat little control room for the site.</p>
+    <!-- App -->
+    <div id="app-view" class="hidden">
+        <div class="top-bar">
+            <div class="links">
+                <a class="name" href="/">Vihaan Pundir <span class="admin-tag">admin</span></a>
+                <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false"><span></span><span></span><span></span></button>
+                <div class="right-links" id="top-links">
+                    <a href="/" target="_blank" rel="noreferrer">View site</a>
+                    <a href="/blog" target="_blank" rel="noreferrer">Blog</a>
+                    <button id="logout-button" type="button" class="link-button">Log out</button>
+                </div>
             </div>
+        </div>
 
-            <nav class="admin-nav" aria-label="Admin sections">
-                <button type="button" class="nav-link active" data-section="blogs">Blogs</button>
-                <button type="button" class="nav-link" data-section="projects">Projects</button>
-                <button type="button" class="nav-link" data-section="pieces">Pieces</button>
+        <div class="admin-subhead">
+            <nav class="admin-tabs" aria-label="Admin sections">
+                <button type="button" class="tab active" data-section="blogs">Blogs <span class="count" id="count-blogs">0</span></button>
+                <button type="button" class="tab" data-section="projects">Projects <span class="count" id="count-projects">0</span></button>
+                <button type="button" class="tab" data-section="pieces">Pieces <span class="count" id="count-pieces">0</span></button>
             </nav>
-
-            <div class="sidebar-actions">
-                <button id="create-entry" type="button" class="primary-button">New Entry</button>
-                <button id="logout-button" type="button" class="ghost-button">Log Out</button>
+            <div class="subhead-right">
+                <span id="save-status" class="status-pill">Saved</span>
+                <a id="public-link" class="ghost-link hidden" href="/" target="_blank" rel="noreferrer">Open public page ↗</a>
+                <button id="create-entry" type="button" class="primary-button">+ New post</button>
             </div>
-        </aside>
+        </div>
 
-        <main class="admin-main">
-            <header class="admin-topbar">
-                <div>
-                    <p id="section-kicker" class="eyebrow">Blogs</p>
-                    <h2 id="section-title">Manage Blogs</h2>
-                </div>
-
-                <div class="topbar-status">
-                    <span id="save-status" class="status-pill">Saved</span>
-                    <a id="public-link" class="ghost-link hidden" href="/" target="_blank" rel="noreferrer">Open Public Page</a>
-                </div>
-            </header>
-
-            <section class="admin-workspace">
-                <div class="list-panel">
-                    <div class="panel-header">
-                        <div>
-                            <p class="eyebrow">Collection</p>
-                            <h3 id="list-heading">All Blogs</h3>
-                        </div>
-                        <input id="list-search" type="search" placeholder="Search...">
+        <main class="admin-workspace">
+            <aside class="list-panel">
+                <div class="panel-header">
+                    <div>
+                        <p class="eyebrow" id="list-kicker">Collection</p>
+                        <h3 id="list-heading">All blogs</h3>
                     </div>
-
-                    <p id="list-note" class="panel-note hidden"></p>
-                    <div id="entry-list" class="entry-list"></div>
-                    <p id="list-empty" class="panel-empty hidden">Nothing here yet.</p>
+                    <span class="list-total mono" id="list-total"></span>
                 </div>
-
-                <div class="editor-panel">
-                    <div class="panel-header">
-                        <div>
-                            <p class="eyebrow">Editor</p>
-                            <h3 id="editor-heading">New Blog Post</h3>
-                        </div>
-                    </div>
-
-                    <div id="editor-root" class="editor-root"></div>
+                <div class="list-search-row">
+                    <input id="list-search" type="search" placeholder="Search title, slug, tag…" autocomplete="off">
                 </div>
+                <p id="list-note" class="panel-note hidden"></p>
+                <div id="entry-list" class="entry-list"></div>
+                <p id="list-empty" class="panel-empty hidden">Nothing here yet.</p>
+                <p class="list-foot mono">⌘S saves · esc closes dialogs</p>
+            </aside>
+
+            <section class="editor-panel">
+                <div id="editor-root" class="editor-root"></div>
             </section>
         </main>
+
+        <div id="toast-root" class="toast-root" aria-live="polite"></div>
+
+        <!-- generic modal -->
+        <div id="modal-root" class="modal-root hidden">
+            <div class="modal-backdrop" data-close-modal></div>
+            <div class="modal-card" role="dialog" aria-modal="true">
+                <h3 id="modal-title">Dialog</h3>
+                <p id="modal-desc" class="muted"></p>
+                <div id="modal-fields" class="modal-fields"></div>
+                <div class="modal-actions">
+                    <button type="button" id="modal-cancel" class="ghost-button">Cancel</button>
+                    <button type="button" id="modal-confirm" class="primary-button">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- slash menu + toolbar link popup live inside docs editor -->
+        <div id="slash-menu" class="slash-menu hidden"></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/turndown@7.2.0/dist/turndown.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/turndown-plugin-gfm@1.0.2/dist/turndown-plugin-gfm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
     <script src="/admin/assets/admin.js"></script>
 </body>
 </html>
